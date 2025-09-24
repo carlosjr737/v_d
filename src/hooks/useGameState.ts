@@ -87,8 +87,6 @@ export const useGameState = () => {
 
   const fulfillCard = () => {
     if (!gameState.currentCard) return;
-
-    const currentPlayer = gameState.players[gameState.currentPlayerIndex];
     
     setGameState(prev => {
       const updatedCards = prev.availableCards.filter(card => card.id !== prev.currentCard!.id);
