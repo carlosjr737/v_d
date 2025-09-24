@@ -3,10 +3,9 @@ import { GameState, Card, Player } from '../types/game';
 import { CheckCircle, Loader2 } from 'lucide-react';
 import { CreateCardModal } from './CreateCardModal';
 import { DeckModal } from './DeckModal';
-
 import { HUD } from '../ui/HUD';
 import { ChoiceGrid } from '../ui/ChoiceGrid';
-import { CardArea } from '../ui/CardArea';
+import { CardReveal } from '../ui/CardReveal';
 import { Dock } from '../ui/Dock';
 
 
@@ -251,14 +250,47 @@ export const GameScreen: React.FC<GameScreenProps> = ({
   const handleOpenReset = () => setShowResetConfirm(true);
 
   return (
-    <div className="flex min-h-dvh w-full justify-center">
-      <div className="grid min-h-dvh w-full max-w-md grid-rows-[56px_auto_88px] safe-px">
-        <div className="py-3">
-          {intensity ? (
+    <div className="grid min-h-dvh grid-rows-[56px_auto_88px] overflow-hidden">
+      <div className="px-4 py-2">
+        {intensity && (
+          <HUD intensity={intensity} currentPlayerInitial={currentPlayerInitial} boostPoints={boostPoints} />
+        )}
+      </div>
+      <div className="overflow-hidden">
+        {cardPhase === 'idle' ? (
+          <ChoiceGrid
+            onTruth={() => handleDrawCard('truth')}
+            onDare={() => handleDrawCard('dare')}
+            disabled={!canDrawCard}
+          />
+        ) : (
+          <CardReveal
+            cardText={activeCard?.text ?? ''}
+            deckTotal={deckSummary}
+            pileCount={pileCount}
+            hasBoost={hasBoost}
+            onFulfill={onFulfillCard}
+            onPass={onPassCard}
+            canResolve={canResolveCard}
+            isLoading={isCardLoading}
+          />
+        )}
+      </div>
+      <div>
+        <Dock onCreate={handleOpenCreate} onDeck={handleOpenDeck} onReset={handleOpenReset} canCreate={Boolean(currentPlayer)} />
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      <div className="grid min-h-dvh grid-rows-[56px_auto_88px] overflow-hidden">
+        <div className="px-4 py-2">
+          {intensity && (
             <HUD intensity={intensity} currentPlayerInitial={currentPlayerInitial} boostPoints={boostPoints} />
-          ) : null}
+          )}
         </div>
-        <div className="flex flex-col justify-center overflow-hidden">
+        <div className="overflow-hidden">
           {cardPhase === 'idle' ? (
             <ChoiceGrid
               onTruth={() => handleDrawCard('truth')}
@@ -266,11 +298,11 @@ export const GameScreen: React.FC<GameScreenProps> = ({
               disabled={!canDrawCard}
             />
           ) : (
-            <CardArea
+            <CardReveal
+              cardText={activeCard?.text ?? ''}
               deckTotal={deckSummary}
               pileCount={pileCount}
               hasBoost={hasBoost}
-              cardText={activeCard?.text ?? ''}
               onFulfill={onFulfillCard}
               onPass={onPassCard}
               canResolve={canResolveCard}
@@ -278,7 +310,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
             />
           )}
         </div>
-        <div className="pb-[max(env(safe-area-inset-bottom),12px)]">
+        <div>
           <Dock onCreate={handleOpenCreate} onDeck={handleOpenDeck} onReset={handleOpenReset} canCreate={Boolean(currentPlayer)} />
         </div>
       </div>
@@ -301,29 +333,32 @@ export const GameScreen: React.FC<GameScreenProps> = ({
       )}
 
       {showResetConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay-veil)] p-4">
-          <div className="w-full max-w-sm space-y-4 rounded-card border border-border/60 bg-bg-900/80 p-6 shadow-heat [--focus-shadow:var(--shadow-heat)] backdrop-blur-xl">
-            <h3 className="text-xl font-display uppercase tracking-[0.18em] text-text">
-              Reiniciar sessão?
-            </h3>
-            <p className="text-sm text-text-subtle">
-              Isso irá apagar todo o progresso e cartas criadas. Esta ação não pode ser desfeita.
-            </p>
-            <div className="grid gap-3 sm:grid-cols-2">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg-900/95 p-4 backdrop-blur-md">
+          <div className="w-full max-w-sm space-y-6 rounded-card bg-bg-800/90 p-6">
+            <div className="text-center">
+              <div className="mb-4 text-6xl">⚠️</div>
+              <h3 className="mb-2 font-display text-2xl font-bold text-white">
+                REINICIAR?
+              </h3>
+              <p className="text-sm text-text-subtle">
+                Todo progresso será perdido
+              </p>
+            </div>
+            <div className="grid gap-3 grid-cols-2">
               <button
                 onClick={() => setShowResetConfirm(false)}
-                className="flex h-12 items-center justify-center rounded-pill border border-border px-4 text-sm font-semibold uppercase tracking-[0.2em] text-text transition hover:border-primary-500 hover:text-primary-300"
+                className="h-12 rounded-pill border-2 border-border bg-transparent font-semibold text-white transition-all hover:scale-105 hover:border-primary-500 active:scale-95"
               >
-                Cancelar
+                CANCELAR
               </button>
               <button
                 onClick={() => {
                   onResetGame();
                   setShowResetConfirm(false);
                 }}
-                className="flex h-12 items-center justify-center rounded-pill bg-[var(--color-secondary-500)] px-4 text-sm font-semibold uppercase tracking-[0.2em] text-[var(--color-bg-900)] shadow-heat [--focus-shadow:var(--shadow-heat)] transition hover:brightness-110"
+                className="h-12 rounded-pill bg-secondary-500 font-semibold text-white transition-all hover:scale-105 active:scale-95"
               >
-                Reiniciar
+                REINICIAR
               </button>
             </div>
           </div>
@@ -331,24 +366,18 @@ export const GameScreen: React.FC<GameScreenProps> = ({
       )}
 
       {isDrawingPlayer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay-veil)]/95 px-4 py-6 backdrop-blur-md">
-          <div className="relative w-full max-w-md overflow-hidden rounded-card border border-border/60 bg-bg-900/85 p-8 text-center shadow-heat [--focus-shadow:var(--shadow-heat)]">
-            <div className="pointer-events-none absolute -inset-20 opacity-40" aria-hidden="true">
-              <div className="absolute inset-0 animate-spin-slower bg-grad-heat blur-3xl" />
-            </div>
-            <div className="pointer-events-none absolute inset-0 bg-[var(--texture-noise)] opacity-20 mix-blend-soft-light" aria-hidden="true" />
-            <div className="relative z-10 space-y-5">
-              <span className="inline-flex items-center gap-2 rounded-pill border border-border/40 bg-bg-800/70 px-5 py-2 text-xs font-semibold uppercase tracking-[0.4em] text-text-subtle animate-shuffle-pulse">
-                Sorteando próxima rodada
-              </span>
-              <div className="min-h-[3rem] text-3xl font-display uppercase tracking-[0.18em] text-text" aria-live="polite">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg-900/95 backdrop-blur-md">
+          <div className="w-full max-w-md rounded-card bg-bg-800/90 p-8 text-center">
+            <div className="space-y-6">
+              <div className="text-6xl">🎯</div>
+              <div className="min-h-[3rem] font-display text-3xl font-bold text-white" aria-live="polite">
                 {drawHighlightText}
               </div>
-              <div className="flex items-center justify-center gap-2 text-xs uppercase tracking-[0.3em] text-text-subtle">
+              <div className="flex items-center justify-center gap-2 text-sm text-text-subtle">
                 {finalDrawName ? (
-                  <CheckCircle className="h-4 w-4 text-accent-500" />
+                  <CheckCircle className="h-5 w-5 text-primary-500" />
                 ) : (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-5 w-5 animate-spin" />
                 )}
                 <span>{drawStatusText}</span>
               </div>
@@ -356,7 +385,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
 
