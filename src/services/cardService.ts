@@ -1,6 +1,10 @@
 import { CARDS_COLLECTION, FIRESTORE_BASE_URL, firebaseConfig } from '../config/firebase';
 import { Card, IntensityLevel } from '../types/game';
 
+export const REMOTE_DECK_ERROR_FLAG = '__remoteDeckError__' as const;
+
+type CardFetchResult = Card[] & { [REMOTE_DECK_ERROR_FLAG]?: true };
+
 interface FirestoreFieldValue {
   stringValue?: string;
   booleanValue?: boolean;
@@ -60,37 +64,55 @@ const mapDocumentToCard = (document: FirestoreDocument): Card | null => {
 };
 
 export const fetchCardsByIntensity = async (intensity: IntensityLevel): Promise<Card[]> => {
-  const body = {
-    structuredQuery: {
-      from: [{ collectionId: CARDS_COLLECTION }],
-      where: {
-        fieldFilter: {
-          field: { fieldPath: 'level' },
-          op: 'EQUAL',
-          value: { stringValue: intensity },
+  try {
+    const body = {
+      structuredQuery: {
+        from: [{ collectionId: CARDS_COLLECTION }],
+        where: {
+          fieldFilter: {
+            field: { fieldPath: 'level' },
+            op: 'EQUAL',
+            value: { stringValue: intensity },
+          },
         },
+        orderBy: [{ field: { fieldPath: '__name__' }, direction: 'ASCENDING' }],
       },
-      orderBy: [{ field: { fieldPath: '__name__' }, direction: 'ASCENDING' }],
-    },
-  };
+    };
 
-  const response = await fetch(`${FIRESTORE_BASE_URL}:runQuery?key=${firebaseConfig.apiKey}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
+    const response = await fetch(`${FIRESTORE_BASE_URL}:runQuery?key=${firebaseConfig.apiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
 
-  if (!response.ok) {
-    throw new Error(`Não foi possível carregar as cartas (${response.status})`);
+    if (!response.ok) {
+      if (import.meta.env.DEV) {
+        console.warn(
+          `[cardService] Falha ao consultar cartas remotas: status ${response.status}`
+        );
+      }
+      const fallback = [] as CardFetchResult;
+      fallback[REMOTE_DECK_ERROR_FLAG] = true;
+      return fallback;
+    }
+
+    const data = (await response.json()) as RunQueryResponseItem[];
+
+    const cards = data
+      .map(item => (item.document ? mapDocumentToCard(item.document) : null))
+      .filter((card): card is Card => Boolean(card));
+
+    return cards as CardFetchResult;
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.warn('[cardService] Erro ao buscar cartas remotas:', error);
+    }
+    const fallback = [] as CardFetchResult;
+    fallback[REMOTE_DECK_ERROR_FLAG] = true;
+    return fallback;
   }
-
-  const data = (await response.json()) as RunQueryResponseItem[];
-
-  return data
-    .map(item => (item.document ? mapDocumentToCard(item.document) : null))
-    .filter((card): card is Card => Boolean(card));
 };
 
 interface CreateCardInput {
@@ -105,35 +127,47 @@ interface CreateCardResponse {
 }
 
 export const createRemoteCard = async (input: CreateCardInput): Promise<string> => {
-  const document = {
-    fields: {
-      type: { stringValue: input.type },
-      text: { stringValue: input.text },
-      level: { stringValue: input.level },
-      isCustom: { booleanValue: input.isCustom ?? false },
-      isBoosted: { booleanValue: false },
-      createdAt: { timestampValue: new Date().toISOString() },
-    },
-  };
+  try {
+    const document = {
+      fields: {
+        type: { stringValue: input.type },
+        text: { stringValue: input.text },
+        level: { stringValue: input.level },
+        isCustom: { booleanValue: input.isCustom ?? false },
+        isBoosted: { booleanValue: false },
+        createdAt: { timestampValue: new Date().toISOString() },
+      },
+    };
 
-  const response = await fetch(`${FIRESTORE_BASE_URL}/${CARDS_COLLECTION}?key=${firebaseConfig.apiKey}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(document),
-  });
+    const response = await fetch(
+      `${FIRESTORE_BASE_URL}/${CARDS_COLLECTION}?key=${firebaseConfig.apiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(document),
+      }
+    );
 
-  if (!response.ok) {
-    throw new Error(`Não foi possível salvar a carta (${response.status})`);
+    if (!response.ok) {
+      throw new Error(`Não foi possível salvar a carta (${response.status})`);
+    }
+
+    const data = (await response.json()) as CreateCardResponse;
+    const id = data.name ? data.name.split('/').pop() : null;
+
+    if (!id) {
+      throw new Error('Resposta inválida ao criar carta.');
+    }
+
+    return id;
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.warn('[cardService] Erro ao criar carta remota:', error);
+    }
+    throw error instanceof Error
+      ? error
+      : new Error('Não foi possível salvar a carta no momento.');
   }
-
-  const data = (await response.json()) as CreateCardResponse;
-  const id = data.name ? data.name.split('/').pop() : null;
-
-  if (!id) {
-    throw new Error('Resposta inválida ao criar carta.');
-  }
-
-  return id;
 };
