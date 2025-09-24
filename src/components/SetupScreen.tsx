@@ -1,4 +1,6 @@
+
 import React, { useState } from 'react';
+
 import {
   GameMode,
   IntensityLevel,
@@ -7,6 +9,7 @@ import {
   StartGameOptions,
 } from '../types/game';
 import { Users, UserPlus, X, ArrowUp, ArrowDown, Play, Loader2 } from 'lucide-react';
+import { shuffleArray } from '../utils/shuffle';
 
 interface SetupScreenProps {
   onStartGame: (
@@ -40,6 +43,91 @@ export const SetupScreen: React.FC<SetupScreenProps> = ({ onStartGame, isStartin
     { id: '2', name: '', boostPoints: 3 },
   ]);
   const [newPlayerName, setNewPlayerName] = useState('');
+  const [isShuffling, setIsShuffling] = useState(false);
+  const [shuffleDisplayPlayers, setShuffleDisplayPlayers] = useState<Player[]>([]);
+  const [currentShuffleName, setCurrentShuffleName] = useState<string | null>(null);
+  const [revealedCount, setRevealedCount] = useState(0);
+
+  const shuffleIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const shuffleTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const isMountedRef = useRef(true);
+
+  const clearShuffleTimers = () => {
+    if (shuffleIntervalRef.current) {
+      clearInterval(shuffleIntervalRef.current);
+      shuffleIntervalRef.current = null;
+    }
+
+    shuffleTimeoutsRef.current.forEach(timeoutId => {
+      clearTimeout(timeoutId);
+    });
+    shuffleTimeoutsRef.current = [];
+  };
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      clearShuffleTimers();
+    };
+  }, []);
+
+  const queueTimeout = (handler: () => void, delay: number) => {
+    const timeoutId = setTimeout(handler, delay);
+    shuffleTimeoutsRef.current.push(timeoutId);
+    return timeoutId;
+  };
+
+  const performShuffleAnimation = (playersToShuffle: Player[]): Promise<Player[]> => {
+    clearShuffleTimers();
+
+    if (playersToShuffle.length === 0) {
+      return Promise.resolve([]);
+    }
+
+    const finalOrder = shuffleArray(playersToShuffle);
+
+    if (!isMountedRef.current) {
+      return Promise.resolve(finalOrder);
+    }
+
+    setIsShuffling(true);
+    setShuffleDisplayPlayers(finalOrder);
+    setRevealedCount(0);
+    setCurrentShuffleName(null);
+
+    shuffleIntervalRef.current = setInterval(() => {
+      const randomPlayer = finalOrder[Math.floor(Math.random() * finalOrder.length)];
+      setCurrentShuffleName(randomPlayer?.name ?? null);
+    }, 120);
+
+    return new Promise(resolve => {
+      const highlightDuration = Math.max(1500, finalOrder.length * 180);
+
+      queueTimeout(() => {
+        if (shuffleIntervalRef.current) {
+          clearInterval(shuffleIntervalRef.current);
+          shuffleIntervalRef.current = null;
+        }
+
+        setCurrentShuffleName(null);
+
+        const revealPlayer = (index: number) => {
+          setRevealedCount(prev => (index + 1 > prev ? index + 1 : prev));
+
+          if (index < finalOrder.length - 1) {
+            queueTimeout(() => revealPlayer(index + 1), 350);
+          } else {
+            queueTimeout(() => {
+              setCurrentShuffleName('Ordem definida!');
+              resolve(finalOrder);
+            }, 700);
+          }
+        };
+
+        revealPlayer(0);
+      }, highlightDuration);
+    });
+  };
 
   const addPlayer = () => {
     if (newPlayerName.trim()) {
@@ -84,7 +172,7 @@ export const SetupScreen: React.FC<SetupScreenProps> = ({ onStartGame, isStartin
     (mode === 'casal' ? players.length === 2 : players.length >= 3);
 
   const handleStart = async () => {
-    if (!canStart || isStarting) {
+    if (!canStart || isStarting || isShuffling) {
       return;
     }
 
@@ -94,7 +182,9 @@ export const SetupScreen: React.FC<SetupScreenProps> = ({ onStartGame, isStartin
     }));
 
     try {
+
       const result = await onStartGame(mode!, intensity!, sanitizedPlayers, {
+
         shouldShuffle: false,
       });
 
@@ -104,8 +194,22 @@ export const SetupScreen: React.FC<SetupScreenProps> = ({ onStartGame, isStartin
     } catch (error) {
       console.error('Erro ao iniciar o jogo:', error);
       alert('Não foi possível iniciar o jogo. Tente novamente.');
+    } finally {
+      clearShuffleTimers();
+
+      if (isMountedRef.current) {
+        setIsShuffling(false);
+        setShuffleDisplayPlayers([]);
+        setRevealedCount(0);
+        setCurrentShuffleName(null);
+      }
     }
   };
+
+  const isOrderDefined =
+    revealedCount === shuffleDisplayPlayers.length && shuffleDisplayPlayers.length > 0;
+  const highlightText =
+    currentShuffleName ?? (isOrderDefined ? 'Ordem definida!' : 'Embaralhando...');
 
   return (
     <div className="flex flex-1 justify-center px-4 py-10 sm:px-6 lg:px-8">
@@ -195,7 +299,9 @@ export const SetupScreen: React.FC<SetupScreenProps> = ({ onStartGame, isStartin
                   Jogadores ({players.length} {mode === 'casal' ? '- máx 2' : '- mín 3'})
                 </h3>
                 <p className="text-xs text-text-subtle">
+
                   A cada rodada um nome será sorteado automaticamente.
+
                 </p>
               </div>
 
@@ -269,16 +375,20 @@ export const SetupScreen: React.FC<SetupScreenProps> = ({ onStartGame, isStartin
             <section className="space-y-3">
               <button
                 onClick={handleStart}
-                disabled={!canStart || isStarting}
-                aria-busy={isStarting}
+                disabled={!canStart || isStarting || isShuffling}
+                aria-busy={isStarting || isShuffling}
                 className="flex h-[var(--button-height)] w-full items-center justify-center gap-3 rounded-pill bg-grad-heat px-6 text-lg font-semibold uppercase tracking-[0.24em] text-text shadow-heat [--focus-shadow:var(--shadow-heat)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
               >
+
                 {isStarting ? (
+
                   <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
                   <Play size={22} />
                 )}
+
                 {isStarting ? 'Sincronizando baralho...' : 'Iniciar sessão'}
+
               </button>
               {!canStart && (
                 <div className="rounded-card border border-dashed border-border/60 bg-bg-900/50 p-4 text-center text-sm text-text-subtle">
@@ -292,6 +402,56 @@ export const SetupScreen: React.FC<SetupScreenProps> = ({ onStartGame, isStartin
           </div>
         </div>
       </div>
+      {isShuffling && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay-veil)]/95 px-4 py-6 backdrop-blur-md">
+          <div className="relative w-full max-w-xl overflow-hidden rounded-card border border-border/60 bg-bg-900/85 p-8 text-center shadow-heat [--focus-shadow:var(--shadow-heat)]">
+            <div className="pointer-events-none absolute -inset-24 opacity-40" aria-hidden="true">
+              <div className="absolute inset-0 animate-spin-slower bg-grad-heat blur-3xl" />
+            </div>
+            <div className="pointer-events-none absolute inset-0 bg-[var(--texture-noise)] opacity-20 mix-blend-soft-light" aria-hidden="true" />
+            <div className="relative z-10 space-y-6">
+              <span className="inline-flex items-center gap-2 rounded-pill border border-border/40 bg-bg-800/70 px-5 py-2 text-xs font-semibold uppercase tracking-[0.4em] text-text-subtle animate-shuffle-pulse">
+                Sorteando ordem
+              </span>
+              <div className="min-h-[3rem] text-3xl font-display uppercase tracking-[0.2em] text-text" aria-live="polite">
+                {highlightText}
+              </div>
+              <p className="text-sm text-text-subtle">
+                A vez de cada jogador é escolhida aleatoriamente. Respire fundo e boa sorte!
+              </p>
+              <div className="space-y-3 text-left">
+                {shuffleDisplayPlayers.map((player, index) => {
+                  const isRevealed = index < revealedCount;
+                  return (
+                    <div
+                      key={player.id}
+                      className={`flex items-center justify-between rounded-card border border-border/40 bg-bg-800/70 px-4 py-3 transition-all duration-500 ${
+                        isRevealed ? 'translate-y-0 opacity-100' : '-translate-y-2 opacity-0'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-grad-heat text-sm font-semibold uppercase tracking-[0.2em] text-text shadow-heat [--focus-shadow:var(--shadow-heat)]">
+                          {index + 1}
+                        </span>
+                        <span className="text-base font-semibold uppercase tracking-[0.18em] text-text">
+                          {isRevealed ? player.name : '???'}
+                        </span>
+                      </div>
+                      <span className="text-xs uppercase tracking-[0.3em] text-text-subtle">
+                        {isRevealed ? 'Pronto' : '...'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex items-center justify-center gap-2 text-xs uppercase tracking-[0.3em] text-text-subtle">
+                {(isStarting || !isOrderDefined) && <Loader2 className="h-4 w-4 animate-spin" />}
+                <span>{isStarting ? 'Sincronizando cartas' : isOrderDefined ? 'Vamos jogar!' : 'Preparando sequência'}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
