@@ -127,93 +127,63 @@
     animation: spinSlower 14s linear infinite;
   }
 
-  .animate-card-flip {
-    animation: cardFlip var(--card-flip-duration) var(--card-flip-timing) both;
-    transform-style: preserve-3d;
+
+  @keyframes gradientPulse {
+    0%,
+    100% {
+      transform: scale(1);
+      opacity: 0.45;
+    }
+    50% {
+      transform: scale(1.15);
+      opacity: 0.75;
+    }
   }
 
-  .animate-neon-pulse {
-    animation: neonPulse var(--neon-pulse-duration) ease-in-out infinite;
+  @keyframes noiseFade {
+    0%,
+    100% {
+      opacity: 0.18;
+    }
+    50% {
+      opacity: 0.32;
+    }
   }
 
-  .animate-particle-rise {
-    animation: ascendParticles var(--particle-rise-duration) linear infinite;
+  @keyframes floatSlow {
+    0%,
+    100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-8px);
+    }
   }
 
-  .card-stack {
-    position: relative;
-    display: grid;
-    gap: var(--card-stack-gap);
-    perspective: var(--card-stack-perspective);
+  @keyframes floatSlower {
+    0%,
+    100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(10px);
+    }
   }
 
-  .card-stack > * {
-    transform-origin: center;
+  .animate-gradient-pulse {
+    animation: gradientPulse 18s ease-in-out infinite;
   }
 
-  .card-stack::after {
-    content: '';
-    position: absolute;
-    inset: calc(var(--card-stack-gap) * -1);
-    border-radius: calc(var(--radius-card) + var(--card-stack-gap));
-    border: 1px solid rgba(255, 46, 126, 0.18);
-    box-shadow: 0 0 0 var(--card-thickness) rgba(196, 0, 255, 0.08);
-    pointer-events: none;
+  .animate-noise-fade {
+    animation: noiseFade 12s ease-in-out infinite;
   }
 
-  .hud-chip {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: var(--hud-chip-size);
-    height: var(--hud-chip-size);
-    border-radius: 999px;
-    border: var(--hud-chip-border) solid rgba(255, 255, 255, 0.16);
-    box-shadow: var(--glow-boost), inset 0 0 0 var(--hud-ring-thickness) rgba(255, 46, 126, 0.15);
-    background: var(--grad-lobby);
-    backdrop-filter: blur(10px);
-    font-size: var(--hud-chip-font);
-    letter-spacing: 0.08em;
-    gap: var(--hud-chip-gap);
+  .animate-float-slow {
+    animation: floatSlow 9s ease-in-out infinite;
   }
 
-  .hud-chip::before {
-    content: '';
-    position: absolute;
-    inset: 6px;
-    border-radius: inherit;
-    background: linear-gradient(160deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 46, 126, 0.08) 100%);
-    opacity: 0.8;
-    pointer-events: none;
-  }
+  .animate-float-slower {
+    animation: floatSlower 13s ease-in-out infinite;
 
-  .particle-overlay {
-    pointer-events: none;
-    position: absolute;
-    inset: 0;
-    overflow: hidden;
-    background-image: var(--texture-sparks);
-    background-repeat: repeat;
-    mix-blend-mode: screen;
-  }
-
-  .particle-overlay::before,
-  .particle-overlay::after {
-    content: '';
-    position: absolute;
-    left: 50%;
-    width: var(--particle-size);
-    height: var(--particle-trail-length);
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, rgba(255, 46, 126, 0.5) 60%, rgba(196, 0, 255, 0) 100%);
-    filter: blur(var(--particle-blur));
-    transform: translateX(-50%);
-    animation: ascendParticles calc(var(--particle-rise-duration) * 1.1) linear infinite;
-  }
-
-  .particle-overlay::after {
-    animation-delay: calc(var(--particle-rise-duration) / 2);
-    opacity: 0.65;
-    transform: translateX(-50%) scaleX(0.75);
   }
 }

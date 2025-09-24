@@ -3,6 +3,7 @@ import { GameState, Card, Player } from '../types/game';
 import { Heart, Zap, Plus, Eye, RotateCcw, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { CreateCardModal } from './CreateCardModal';
 import { DeckModal } from './DeckModal';
+import { GameCard } from './GameCard';
 
 interface GameScreenProps {
   gameState: GameState;
@@ -30,11 +31,6 @@ const levelBarColors = {
   medio: 'bg-[var(--level-medio)]',
   pesado: 'bg-[var(--level-pesado)]',
   extremo: 'bg-[var(--level-extremo)]',
-} as const;
-
-const cardTypeStyles = {
-  truth: 'bg-[var(--color-primary-500)] text-[var(--color-bg-900)]',
-  dare: 'bg-[var(--color-secondary-500)] text-[var(--color-bg-900)]',
 } as const;
 
 export const GameScreen: React.FC<GameScreenProps> = ({
@@ -250,34 +246,13 @@ export const GameScreen: React.FC<GameScreenProps> = ({
               </div>
             ) : (
               <div className="space-y-6">
-                <div className="flex flex-wrap items-center justify-center gap-3 text-sm font-semibold uppercase tracking-[0.3em]">
-                  <span
-                    className={`inline-flex items-center gap-2 rounded-pill px-4 py-2 shadow-heat [--focus-shadow:var(--shadow-heat)] ${
-                      currentCard.type === 'truth'
-                        ? cardTypeStyles.truth
-                        : cardTypeStyles.dare
-                    }`}
-                  >
-                    {currentCard.type === 'truth' ? <Heart size={18} /> : <Zap size={18} />}
-                    {currentCard.type === 'truth' ? 'Verdade' : 'Desafio'}
-                  </span>
-                  {currentCard.isBoosted && (
-                    <span className="inline-flex items-center gap-2 rounded-pill bg-accent-500 px-4 py-2 text-xs uppercase tracking-[0.4em] text-text shadow-heat [--focus-shadow:var(--shadow-heat)]">
-                      BOOST
-                    </span>
-                  )}
-                </div>
-                <div className="relative overflow-hidden rounded-card border border-border/50 bg-bg-800/80 p-8">
-                  <div className="absolute inset-x-6 top-0 h-1 rounded-full  bg-text/10" aria-hidden="true" />
-                  <p className="relative z-10 text-lg leading-relaxed text-text">
-                    {currentCard.text}
-                  </p>
-                  {currentCard.isCustom && (
-                    <div className="relative z-10 mt-4 inline-flex items-center gap-2 rounded-pill border border-dashed border-border/60 px-3 py-1 text-xs uppercase tracking-[0.3em] text-text-subtle">
-                      Carta personalizada
-                    </div>
-                  )}
-                </div>
+                <GameCard
+                  type={currentCard.type}
+                  text={currentCard.text}
+                  isBoosted={currentCard.isBoosted}
+                  isCustom={currentCard.isCustom}
+                  className="min-h-[18rem]"
+                />
                 <div className="grid gap-3 sm:grid-cols-2">
                   <button
                     onClick={onFulfillCard}
