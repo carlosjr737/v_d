@@ -190,21 +190,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     }, 650); // duração do batimento
   };
 
-  const handleDraw = (kind: 'truth' | 'dare') => {
-    setUi(s => ({ ...s, sweeping: true }));
-    
-    // Vibração tátil se disponível
-    if ('vibrate' in navigator) {
-      navigator.vibrate([20, 50, 20]);
-    }
-    
-    setTimeout(() => {
-      // Chama a lógica existente
-      handleDrawCard(kind);
-      setUi(s => ({ ...s, sweeping: false }));
-    }, 650); // duração do batimento
-  };
-
   const handleDrawCard = (type: 'truth' | 'dare') => {
     if (!currentPlayer || cardPhase === 'drawing' || cardPhase === 'preparing') {
       return;
