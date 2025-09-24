@@ -8,28 +8,13 @@ import {
   StartGameResult,
   StartGameOptions,
 } from '../types/game';
-import {
-  Users,
-  UserPlus,
-  X,
-  ArrowUp,
-  ArrowDown,
-  Play,
-  Loader2,
-  Flame,
-  Sun,
-  Skull,
-  Sparkles,
-  PartyPopper,
-  Crown,
-  Rocket,
-  Star,
-  Gem,
-  Map,
-  Gauge,
-} from 'lucide-react';
-import { LobbyHero } from './LobbyHero';
-import { GameOptionCard } from './GameOptionCard';
+import { Loader2 } from 'lucide-react';
+import { SetupHeader } from '../ui/setup/SetupHeader';
+import { SetupAccordion } from '../ui/setup/SetupAccordion';
+import { SegmentedMode } from '../ui/setup/SegmentedMode';
+import { IntensityChips } from '../ui/setup/IntensityChips';
+import { PlayersCompact } from '../ui/setup/PlayersCompact';
+import { SetupFooter } from '../ui/setup/SetupFooter';
 
 interface SetupScreenProps {
   onStartGame: (
@@ -48,37 +33,12 @@ const intensityLabels: Record<IntensityLevel, string> = {
   extremo: 'Extremo',
 };
 
-interface IntensityConfig {
-  description: string;
-  Icon: React.ComponentType<{ className?: string }>;
-  tagline: string;
-}
-
-const intensityConfigs: Record<IntensityLevel, IntensityConfig> = {
-  leve: {
-    description: 'Aquecimento suave para quebrar o gelo.',
-    Icon: Sparkles,
-    tagline: 'Comece devagar',
-  },
-  medio: {
-    description: 'Equilíbrio perfeito entre risadas e segredos.',
-    Icon: Sun,
-    tagline: 'Confiança em alta',
-  },
-  pesado: {
-    description: 'Desafios ousados para corações corajosos.',
-    Icon: Flame,
-    tagline: 'Só para valentes',
-  },
-  extremo: {
-    description: 'Sem filtros. Apenas adrenalina pura.',
-    Icon: Skull,
-    tagline: 'Limites? Quais?',
-  },
+const intensityAccent: Record<IntensityLevel, string> = {
+  leve: 'var(--level-leve)',
+  medio: 'var(--level-medio)',
+  pesado: 'var(--level-pesado)',
+  extremo: 'var(--level-extremo)',
 };
-
-const avatarIcons = [Sparkles, PartyPopper, Crown, Rocket, Star, Gem];
-const BOOST_MAX = 5;
 
 export const SetupScreen: React.FC<SetupScreenProps> = ({ onStartGame, isStarting }) => {
   const [mode, setMode] = useState<GameMode | null>(null);
@@ -88,6 +48,7 @@ export const SetupScreen: React.FC<SetupScreenProps> = ({ onStartGame, isStartin
     { id: '2', name: '', boostPoints: 3 },
   ]);
   const [newPlayerName, setNewPlayerName] = useState('');
+  const [openSection, setOpenSection] = useState<'mode' | 'intensity' | 'players'>('mode');
   const [isShuffling, setIsShuffling] = useState(false);
   const [shuffleDisplayPlayers, setShuffleDisplayPlayers] = useState<Player[]>([]);
   const [currentShuffleName, setCurrentShuffleName] = useState<string | null>(null);
@@ -178,40 +139,68 @@ export const SetupScreen: React.FC<SetupScreenProps> = ({ onStartGame, isStartin
     });
   };
 
-  const addPlayer = () => {
-    if (newPlayerName.trim()) {
-      const newPlayer: Player = {
-        id: Date.now().toString(),
-        name: newPlayerName.trim(),
-        boostPoints: 3,
-      };
-      setPlayers([...players, newPlayer]);
-      setNewPlayerName('');
-    }
+  const onSelectMode = (value: GameMode) => {
+    setMode(value);
+    setOpenSection('intensity');
   };
 
-  const removePlayer = (id: string) => {
+  const onSelectIntensity = (level: IntensityLevel) => {
+    setIntensity(level);
+    setOpenSection('players');
+  };
+
+  const onUpdatePlayerName = (id: string, name: string) => {
+    setPlayers(players.map(p => (p.id === id ? { ...p, name } : p)));
+  };
+
+  const onAddPlayer = (name?: string) => {
+    const fallbackName = name ?? newPlayerName;
+    const trimmed = fallbackName.trim();
+    const isCoupleMode = mode === 'casal';
+
+    if (!trimmed || (isCoupleMode && players.length >= 2)) {
+      return;
+    }
+
+    const newPlayer: Player = {
+      id: Date.now().toString(),
+      name: trimmed,
+      boostPoints: 3,
+    };
+
+    setPlayers([...players, newPlayer]);
+    setNewPlayerName('');
+  };
+
+  const onRemovePlayer = (id: string) => {
     if (players.length > 2) {
       setPlayers(players.filter(p => p.id !== id));
     }
   };
 
-  const updatePlayerName = (id: string, name: string) => {
-    setPlayers(players.map(p => (p.id === id ? { ...p, name } : p)));
-  };
+  const movePlayerById = (id: string, direction: 'up' | 'down') => {
+    const currentIndex = players.findIndex(player => player.id === id);
 
-  const movePlayer = (index: number, direction: 'up' | 'down') => {
-    const newPlayers = [...players];
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-
-    if (targetIndex >= 0 && targetIndex < players.length) {
-      [newPlayers[index], newPlayers[targetIndex]] = [
-        newPlayers[targetIndex],
-        newPlayers[index],
-      ];
-      setPlayers(newPlayers);
+    if (currentIndex === -1) {
+      return;
     }
+
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+
+    if (targetIndex < 0 || targetIndex >= players.length) {
+      return;
+    }
+
+    const reordered = [...players];
+    [reordered[currentIndex], reordered[targetIndex]] = [
+      reordered[targetIndex],
+      reordered[currentIndex],
+    ];
+    setPlayers(reordered);
   };
+
+  const onMoveUp = (id: string) => movePlayerById(id, 'up');
+  const onMoveDown = (id: string) => movePlayerById(id, 'down');
 
   const canStart =
     mode &&
@@ -220,7 +209,7 @@ export const SetupScreen: React.FC<SetupScreenProps> = ({ onStartGame, isStartin
     players.every(p => p.name.trim().length > 0) &&
     (mode === 'casal' ? players.length === 2 : players.length >= 3);
 
-  const handleStart = async () => {
+  const onStart = async () => {
     if (!canStart || isStarting || isShuffling) {
       return;
     }
@@ -262,287 +251,83 @@ export const SetupScreen: React.FC<SetupScreenProps> = ({ onStartGame, isStartin
   const highlightText =
     currentShuffleName ?? (isOrderDefined ? 'Ordem definida!' : 'Embaralhando...');
 
-  const minPlayersRequired = mode === 'casal' ? 2 : 3;
-  const hasMinimumPlayers = players.length >= minPlayersRequired;
-  const hasExactCouple = mode === 'casal' ? players.length === 2 : true;
-  const hasValidNames = players.every(p => p.name.trim().length > 0);
-  const playersConfigured = Boolean(mode) && hasMinimumPlayers && hasValidNames && hasExactCouple;
+  const canAddMorePlayers = mode !== 'casal' || players.length < 2;
+  const intensityLabel = intensity ? intensityLabels[intensity] : undefined;
+  const intensitySummary = intensity ? (
+    <span style={{ color: intensityAccent[intensity] }}>{intensityLabel}</span>
+  ) : (
+    <span className="text-text-subtle/70">Selecione</span>
+  );
+  const playersSummary = `${players.length} ${players.length === 1 ? 'jogador' : 'jogadores'}`;
+  const canStartNow = Boolean(canStart) && !isStarting && !isShuffling;
 
-  const steps = [
+  const accordionSections = [
     {
-      id: 1,
-      title: 'Passo 1 · Modo',
-      description: 'Escolha o modo ideal para a rodada.',
-      completed: Boolean(mode),
-      Icon: Map,
+      id: 'mode' as const,
+      icon: '👥',
+      label: 'Modo',
+      summary: mode ? (mode === 'casal' ? 'Casal' : 'Grupo') : 'Escolha',
+      content: (
+        <div className="space-y-3">
+          <p className="text-xs uppercase tracking-[0.3em] text-text-subtle/70">Escolha</p>
+          <SegmentedMode value={mode ?? null} onChange={onSelectMode} />
+        </div>
+      ),
     },
     {
-      id: 2,
-      title: 'Passo 2 · Intensidade',
-      description: 'Ajuste o nível de tensão que o grupo aguenta.',
-      completed: Boolean(intensity),
-      Icon: Gauge,
+      id: 'intensity' as const,
+      icon: '🔥',
+      label: 'Intensidade',
+      summary: intensitySummary,
+      content: (
+        <div className="space-y-3">
+          <p className="text-xs uppercase tracking-[0.3em] text-text-subtle/70">Selecione 1 nível</p>
+          <IntensityChips value={intensity ?? undefined} onSelect={onSelectIntensity} />
+        </div>
+      ),
     },
     {
-      id: 3,
-      title: 'Passo 3 · Jogadores',
-      description: 'Garanta nomes, boosts e ordem estelar.',
-      completed: playersConfigured,
-      Icon: Users,
-    },
-    {
-      id: 4,
-      title: 'Passo 4 · Sessão',
-      description: 'Tudo pronto? É hora de soltar as cartas.',
-      completed: canStart,
-      Icon: Play,
+      id: 'players' as const,
+      icon: '🎯',
+      label: 'Jogadores',
+      badge: 'Min 2',
+      summary: playersSummary,
+      content: (
+        <PlayersCompact
+          players={players}
+          draftName={newPlayerName}
+          onDraftChange={setNewPlayerName}
+          canAddMore={canAddMorePlayers}
+          onAdd={onAddPlayer}
+          onName={onUpdatePlayerName}
+          onDel={onRemovePlayer}
+          onUp={onMoveUp}
+          onDown={onMoveDown}
+          disableRemove={players.length <= 2}
+        />
+      ),
     },
   ];
 
-  const activeStepIndex = steps.findIndex(step => !step.completed);
-  const currentStepIndex = activeStepIndex === -1 ? steps.length - 1 : activeStepIndex;
-
   return (
-    <div className="flex flex-1 justify-center px-4 py-10 sm:px-6 lg:px-8">
-      <div className="flex w-full max-w-6xl flex-col gap-10 lg:flex-row">
-        <div className="flex-1 space-y-10">
-          <LobbyHero />
+    <div className="grid min-h-dvh grid-rows-[56px_auto_88px] overflow-hidden">
+      <SetupHeader intensityLabel={intensityLabel} />
 
-          <div className="space-y-8">
-            <section className="rounded-card border border-border/60 bg-bg-800/80 p-8 shadow-heat [--focus-shadow:var(--shadow-heat)] backdrop-blur-xl space-y-4">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold uppercase tracking-[0.3em] text-text-subtle">Modo de jogo</h3>
-                  <p className="text-xs uppercase tracking-[0.3em] text-text-subtle/80">
-                    Defina como a ordem das cartas vai acontecer.
-                  </p>
-                </div>
-                <span className="inline-flex items-center gap-2 rounded-pill border border-border/50 bg-bg-900/60 px-4 py-2 text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-text-subtle">
-                  {mode ? `Modo selecionado: ${mode === 'casal' ? 'Casal' : 'Grupo'}` : 'Passo 1 de 4'}
-                </span>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <GameOptionCard
-                  icon={<Users className="h-6 w-6" />}
-                  title="Casal (2)"
-                  description="Conexão intimista para duplas que querem elevar a temperatura."
-                  isActive={mode === 'casal'}
-                  onClick={() => setMode('casal')}
-                />
-                <GameOptionCard
-                  icon={<Users className="h-6 w-6" />}
-                  title="Grupo (3+)"
-                  description="Energia coletiva com rodadas cheias de surpresas."
-                  isActive={mode === 'grupo'}
-                  onClick={() => setMode('grupo')}
-                />
-              </div>
-            </section>
-
-            <section className="rounded-card border border-border/60 bg-bg-800/80 p-8 shadow-heat [--focus-shadow:var(--shadow-heat)] backdrop-blur-xl space-y-4">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold uppercase tracking-[0.3em] text-text-subtle">Intensidade</h3>
-                  <p className="text-xs uppercase tracking-[0.3em] text-text-subtle/80">
-                    Escolha 1 nível para liberar o baralho.
-                  </p>
-                </div>
-                <span className="inline-flex items-center gap-2 rounded-pill border border-border/50 bg-bg-900/60 px-4 py-2 text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-text-subtle">
-                  {intensity ? `Selecionado: ${intensityLabels[intensity]}` : 'Passo 2 de 4'}
-                </span>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {(Object.keys(intensityLabels) as IntensityLevel[]).map(level => {
-                  const { Icon, description, tagline } = intensityConfigs[level];
-                  return (
-                    <GameOptionCard
-                      key={level}
-                      icon={<Icon className="h-6 w-6" />}
-                      title={intensityLabels[level]}
-                      description={description}
-                      meta={tagline}
-                      isActive={intensity === level}
-                      onClick={() => setIntensity(level)}
-                    />
-                  );
-                })}
-              </div>
-            </section>
-
-            <section className="rounded-card border border-border/60 bg-bg-800/80 p-8 shadow-heat [--focus-shadow:var(--shadow-heat)] backdrop-blur-xl space-y-6">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold uppercase tracking-[0.3em] text-text-subtle">
-                    Jogadores ({players.length} {mode === 'casal' ? '- máx 2' : `- mín ${minPlayersRequired}`})
-                  </h3>
-                  <p className="text-xs text-text-subtle">
-                    A ordem é definida automaticamente. Personalize boosts e prepare o squad.
-                  </p>
-                </div>
-                <span className="inline-flex items-center gap-2 rounded-pill border border-border/50 bg-bg-900/60 px-4 py-2 text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-text-subtle">
-                  {playersConfigured ? 'Configuração pronta' : 'Passo 3 de 4'}
-                </span>
-              </div>
-
-              <div className="space-y-4">
-                {players.map((player, index) => {
-                  const AvatarIcon = avatarIcons[index % avatarIcons.length];
-                  const boostPercent = Math.min(100, Math.max(0, (player.boostPoints / BOOST_MAX) * 100));
-                  const boostStyle = { width: `${boostPercent}%` };
-
-                  return (
-                    <div
-                      key={player.id}
-                      className="group relative overflow-hidden rounded-[1.75rem] border border-border/60 bg-bg-900/60 p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary-500/60 focus-within:border-primary-500/60"
-                    >
-                      <div className="pointer-events-none absolute -inset-20 opacity-0 transition-opacity duration-300 group-hover:opacity-25 group-focus-within:opacity-30" aria-hidden>
-                        <div className="absolute inset-0 bg-grad-heat blur-3xl" />
-                      </div>
-
-                      <div className="relative z-10 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex flex-1 items-center gap-4">
-                          <div className="relative">
-                            <span className="pointer-events-none absolute inset-0 rounded-full bg-grad-heat opacity-60 blur-2xl" aria-hidden />
-                            <div className="relative flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-bg-900/70 text-text shadow-heat [--focus-shadow:var(--shadow-heat)]">
-                              <AvatarIcon className="h-6 w-6" />
-                            </div>
-                          </div>
-
-                          <div className="flex-1 space-y-3">
-                            <input
-                              type="text"
-                              placeholder="Nome do jogador"
-                              value={player.name}
-                              onChange={e => updatePlayerName(player.id, e.target.value)}
-                              className="w-full rounded-pill border border-border/60 bg-transparent px-4 py-2 text-base text-text placeholder:text-text-subtle focus-visible:outline-none focus-visible:ring-0"
-                            />
-                            <div className="space-y-1">
-                              <div className="flex items-center justify-between text-[0.65rem] uppercase tracking-[0.3em] text-text-subtle">
-                                <span className="inline-flex items-center gap-1">
-                                  <Sparkles className="h-3.5 w-3.5" /> Boost ativo
-                                </span>
-                                <span>{player.boostPoints} pts</span>
-                              </div>
-                              <div className="h-1.5 w-full overflow-hidden rounded-full border border-border/40 bg-bg-900/60">
-                                <div className="h-full rounded-full bg-grad-heat transition-all duration-500" style={boostStyle} />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => movePlayer(index, 'up')}
-                            disabled={index === 0}
-                            aria-label="Mover jogador para cima"
-                            className="grid h-10 w-10 place-items-center rounded-full border border-border/40 bg-bg-900/60 text-text-subtle transition-all duration-200 hover:-translate-y-0.5 hover:border-primary-500/50 hover:text-text focus-visible:outline-none focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-30"
-                          >
-                            <ArrowUp size={16} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => movePlayer(index, 'down')}
-                            disabled={index === players.length - 1}
-                            aria-label="Mover jogador para baixo"
-                            className="grid h-10 w-10 place-items-center rounded-full border border-border/40 bg-bg-900/60 text-text-subtle transition-all duration-200 hover:translate-y-0.5 hover:border-primary-500/50 hover:text-text focus-visible:outline-none focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-30"
-                          >
-                            <ArrowDown size={16} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => removePlayer(player.id)}
-                            disabled={players.length <= 2}
-                            aria-label="Remover jogador"
-                            className="grid h-10 w-10 place-items-center rounded-full border border-border/40 bg-bg-900/60 text-text-subtle transition-all duration-200 hover:scale-105 hover:border-secondary-500/60 hover:text-secondary-300 focus-visible:outline-none focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-30"
-                          >
-                            <X size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {(!mode || mode === 'grupo' || players.length < 2) && (
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <input
-                    type="text"
-                    placeholder="Nome do novo jogador"
-                    value={newPlayerName}
-                    onChange={e => setNewPlayerName(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && addPlayer()}
-                    className="flex-1 rounded-pill border border-border/60 bg-bg-900/70 px-4 py-3 text-base text-text placeholder:text-text-subtle focus-visible:outline-none focus-visible:ring-0"
-                  />
-                  <button
-                    onClick={addPlayer}
-                    disabled={!newPlayerName.trim()}
-                    className="flex h-[var(--button-height)] items-center justify-center gap-2 rounded-pill border border-dashed border-border/60 px-6 text-sm font-semibold uppercase tracking-[0.2em] text-text transition-all duration-200 hover:border-primary-500 hover:text-primary-200 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    <UserPlus size={18} />
-                    Adicionar jogador
-                  </button>
-                </div>
-              )}
-            </section>
-
-            <section className="rounded-card border border-border/60 bg-bg-800/80 p-8 shadow-heat [--focus-shadow:var(--shadow-heat)] backdrop-blur-xl space-y-4">
-              <button
-                onClick={handleStart}
-                disabled={!canStart || isStarting || isShuffling}
-                aria-busy={isStarting || isShuffling}
-                className="flex h-[var(--button-height)] w-full items-center justify-center gap-3 rounded-pill bg-grad-heat px-6 text-lg font-semibold uppercase tracking-[0.24em] text-text shadow-heat [--focus-shadow:var(--shadow-heat)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {isStarting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Play size={22} />}
-                {isStarting ? 'Sincronizando baralho...' : 'Iniciar sessão'}
-              </button>
-              {!canStart && (
-                <div className="rounded-card border border-dashed border-border/60 bg-bg-900/60 p-4 text-center text-sm text-text-subtle">
-                  {!mode && '• Escolha um modo de jogo'}
-                  {mode && !intensity && '• Selecione a intensidade'}
-                  {mode && intensity && !players.every(p => p.name.trim()) && '• Preencha todos os nomes'}
-                  {mode === 'grupo' && players.length < 3 && '• Adicione pelo menos 3 jogadores'}
-                </div>
-              )}
-            </section>
-          </div>
+      <main className="overflow-hidden px-3 pb-3">
+        <div className="h-full rounded-[24px] border border-[var(--color-border)]/60 bg-[var(--color-bg-800)]/65 p-3 backdrop-blur">
+          <SetupAccordion
+            sections={accordionSections}
+            openSection={openSection}
+            onChange={section => setOpenSection(section)}
+          />
         </div>
+      </main>
 
-        <aside className="lg:w-72 xl:w-80">
-          <div className="space-y-6 rounded-[2rem] border border-border/60 bg-bg-800/70 p-6 shadow-heat [--focus-shadow:var(--shadow-heat)] backdrop-blur-xl lg:sticky lg:top-24">
-            <div className="space-y-2">
-              <span className="inline-flex items-center gap-2 rounded-pill border border-border/40 bg-bg-900/60 px-4 py-2 text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-text-subtle">
-                Roadmap da sessão
-              </span>
-              <h2 className="text-2xl font-display uppercase tracking-[0.18em] text-text">Etapas</h2>
-              <p className="text-sm text-text-subtle">
-                Acompanhe o fluxo para chegar ao momento da verdade. Cada passo libera novas possibilidades no deck.
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              {steps.map((step, index) => {
-                const StepIcon = step.Icon;
-                const isActive = index === currentStepIndex;
-
-                return (
-                  <GameOptionCard
-                    key={step.id}
-                    as="div"
-                    icon={<StepIcon className="h-6 w-6" />}
-                    title={step.title}
-                    description={step.description}
-                    meta={step.completed ? 'Concluído' : isActive ? 'Agora' : 'Pendente'}
-                    isActive={isActive}
-                    isCompleted={step.completed}
-                  />
-                );
-              })}
-            </div>
-          </div>
-        </aside>
-      </div>
+      <SetupFooter
+        canStart={canStartNow}
+        onStart={onStart}
+        isBusy={isStarting || isShuffling}
+      />
 
       {isShuffling && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay-veil)]/95 px-4 py-6 backdrop-blur-md">

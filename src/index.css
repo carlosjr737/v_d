@@ -64,6 +64,31 @@
   }
 }
 
+@layer components {
+  .seg-on {
+    @apply h-12 rounded-full border border-transparent bg-[var(--grad-heat)] font-semibold text-white shadow-heat transition;
+  }
+
+  .seg-off {
+    @apply h-12 rounded-full border border-[var(--color-border)] bg-[var(--color-bg-900)] bg-opacity-60 font-semibold text-text-subtle transition;
+  }
+
+  .seg-off:hover {
+    @apply text-text;
+  }
+
+  .chip {
+    @apply h-10 rounded-full border px-4 text-sm font-semibold text-text-subtle transition;
+    border-color: var(--chip-color, var(--color-border));
+    color: var(--chip-color, var(--color-text-2));
+  }
+
+  .chip-on {
+    @apply border-transparent text-white shadow-heat;
+    background: var(--chip-color, var(--grad-heat));
+  }
+}
+
 @layer utilities {
   @keyframes shufflePulse {
     0%,
