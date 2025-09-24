@@ -11,8 +11,15 @@
     background-color: var(--color-bg-900);
   }
 
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
   body {
     min-height: 100vh;
+    height: 100%;
     margin: 0;
     background-color: var(--color-bg-900);
     background-image: var(--grad-overlay), var(--texture-noise);
@@ -20,6 +27,7 @@
     color: var(--color-text);
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
+    overflow: hidden;
   }
 
   h1,
@@ -236,5 +244,17 @@
   .animate-float-slower {
     animation: floatSlower 13s ease-in-out infinite;
 
+  }
+
+  .line-clamp-4 {
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .safe-px {
+    padding-left: max(env(safe-area-inset-left), 0px);
+    padding-right: max(env(safe-area-inset-right), 0px);
   }
 }
