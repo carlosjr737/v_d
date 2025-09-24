@@ -7,7 +7,7 @@ import { HUD } from '../ui/HUD';
 import { ChoiceGrid } from '../ui/ChoiceGrid';
 import { CardReveal } from '../ui/CardReveal';
 import { Dock } from '../ui/Dock';
-import { BeatReveal, WarmReveal, SparkOnSuccess } from '../ui/animations/VdAnim';
+import { BeatReveal, WarmReveal, SparkOnSuccess } from '@/ui/animations/VdAnim';
 
 
 interface GameScreenProps {
@@ -43,7 +43,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     gameState.currentCard ? 'revealed' : 'idle'
   );
   const [displayedCard, setDisplayedCard] = useState<Card | null>(gameState.currentCard);
-  const [ui, setUi] = useState({ sweeping: false, justFulfilled: false });
+  const [ui, setUi] = useState({ drawing: false, justFulfilled: false });
 
   const drawIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const drawTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -175,19 +175,19 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     }
   }, [cardPhase, clearCardAnimationTimers, gameState.currentCard]);
 
-  const handleDraw = (kind: 'truth' | 'dare') => {
-    setUi(s => ({ ...s, sweeping: true }));
-    
-    // Vibração tátil se disponível
-    if ('vibrate' in navigator) {
-      navigator.vibrate([20, 50, 20]);
-    }
-    
+  const handleDraw = (kind: 'verdade' | 'desafio') => {
+    setUi((s) => ({ ...s, drawing: true }));
+    try {
+      navigator.vibrate?.(35);
+    } catch {}
     setTimeout(() => {
-      // Chama a lógica existente
-      handleDrawCard(kind);
-      setUi(s => ({ ...s, sweeping: false }));
-    }, 650); // duração do batimento
+      if (kind === 'verdade') {
+        handleDrawCard('truth');
+      } else {
+        handleDrawCard('dare');
+      }
+      setUi((s) => ({ ...s, drawing: false }));
+    }, 650);
   };
 
   const handleDrawCard = (type: 'truth' | 'dare') => {
@@ -221,8 +221,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({
 
   const handleFulfill = () => {
     onFulfillCard(); // lógica existente
-    setUi(s => ({ ...s, justFulfilled: true }));
-    setTimeout(() => setUi(s => ({ ...s, justFulfilled: false })), 520);
+    setUi((s) => ({ ...s, justFulfilled: true }));
+    setTimeout(() => setUi((s) => ({ ...s, justFulfilled: false })), 520);
   };
 
   const drawHighlightText = finalDrawName ?? highlightedName ?? 'Girando nomes...';
@@ -273,51 +273,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({
   const handleOpenReset = () => setShowResetConfirm(true);
 
   return (
-    <div className="grid min-h-dvh grid-rows-[56px_auto_88px] overflow-hidden">
-      <div className="px-4 py-2">
-        {intensity && (
-          <HUD intensity={intensity} currentPlayerInitial={currentPlayerInitial} boostPoints={boostPoints} />
-        )}
-      </div>
-      <div className="overflow-hidden">
-        {cardPhase === 'idle' ? (
-          <BeatReveal run={ui.sweeping}>
-          <BeatReveal run={ui.sweeping}>
-            <ChoiceGrid
-              onTruth={() => handleDraw('truth')}
-              onDare={() => handleDraw('dare')}
-              disabled={!canDrawCard}
-            />
-          </BeatReveal>
-          </BeatReveal>
-        ) : (
-          <SparkOnSuccess success={ui.justFulfilled}>
-            <WarmReveal show={!!activeCard}>
-          <SparkOnSuccess success={ui.justFulfilled}>
-            <WarmReveal show={!!activeCard}>
-              <CardReveal
-                cardText={activeCard?.text ?? ''}
-                deckTotal={deckSummary}
-                pileCount={pileCount}
-                hasBoost={hasBoost}
-                onFulfill={handleFulfill}
-                onPass={onPassCard}
-                canResolve={canResolveCard}
-                isLoading={isCardLoading}
-              />
-            </WarmReveal>
-          </SparkOnSuccess>
-            </WarmReveal>
-          </SparkOnSuccess>
-        )}
-      </div>
-      <div>
-        <Dock onCreate={handleOpenCreate} onDeck={handleOpenDeck} onReset={handleOpenReset} canCreate={Boolean(currentPlayer)} />
-      </div>
-    </div>
-  );
-
-  return (
     <>
       <div className="grid min-h-dvh grid-rows-[56px_auto_88px] overflow-hidden">
         <div className="px-4 py-2">
@@ -327,10 +282,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({
         </div>
         <div className="overflow-hidden">
           {cardPhase === 'idle' ? (
-            <BeatReveal run={ui.sweeping}>
+            <BeatReveal run={ui.drawing}>
               <ChoiceGrid
-                onTruth={() => handleDraw('truth')}
-                onDare={() => handleDraw('dare')}
+                onTruth={() => handleDraw('verdade')}
+                onDare={() => handleDraw('desafio')}
                 disabled={!canDrawCard}
               />
             </BeatReveal>
