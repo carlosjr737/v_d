@@ -9,11 +9,13 @@ import {
   StartGameOptions,
 } from '@/types/game';
 import { seedCards } from '@/data/seedCards';
+
 import {
   fetchCardsByIntensity,
   createRemoteCard,
   REMOTE_DECK_ERROR_FLAG,
 } from '@/services/cardService';
+
 import { shuffleArray } from '@/utils/shuffle';
 import { sanitizeGameState } from '@/utils/sanitizeGameState';
 
