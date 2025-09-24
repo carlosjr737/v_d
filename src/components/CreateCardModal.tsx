@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { Player, IntensityLevel } from '../types/game';
-import { Heart, Zap, X, Plus, Sparkles } from 'lucide-react';
+import { Heart, Zap, X, Plus, Sparkles, Loader2 } from 'lucide-react';
 
 interface CreateCardModalProps {
   currentPlayer: Player;
   intensity: IntensityLevel;
-  onAddCard: (type: 'truth' | 'dare', text: string, applyBoost: boolean) => boolean;
+  onAddCard: (type: 'truth' | 'dare', text: string, applyBoost: boolean) => Promise<boolean>;
   onClose: () => void;
 }
 
@@ -43,10 +43,11 @@ export const CreateCardModal: React.FC<CreateCardModalProps> = ({
   const [cardType, setCardType] = useState<'truth' | 'dare'>('truth');
   const [cardText, setCardText] = useState('');
   const [applyBoost, setApplyBoost] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const canApplyBoost = currentPlayer.boostPoints >= 2;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!cardText.trim()) {
@@ -59,12 +60,21 @@ export const CreateCardModal: React.FC<CreateCardModalProps> = ({
       return;
     }
 
-    const success = onAddCard(cardType, cardText.trim(), applyBoost);
+    setIsSubmitting(true);
 
-    if (success) {
-      onClose();
-    } else {
-      alert('Erro ao criar carta. Verifique se você tem pontos suficientes.');
+    try {
+      const success = await onAddCard(cardType, cardText.trim(), applyBoost);
+
+      if (success) {
+        onClose();
+      } else {
+        alert('Não foi possível criar a carta. Confira seus pontos e sua conexão.');
+      }
+    } catch (error) {
+      console.error('Erro ao enviar carta personalizada:', error);
+      alert('Ocorreu um erro inesperado ao criar a carta. Tente novamente.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -161,6 +171,7 @@ export const CreateCardModal: React.FC<CreateCardModalProps> = ({
               rows={4}
               className="w-full rounded-card border border-border/60 bg-bg-900/60 px-4 py-3 text-base text-text placeholder:text-text-subtle focus-visible:outline-none focus-visible:ring-0"
               maxLength={500}
+              disabled={isSubmitting}
               required
             />
             <div className="flex items-center justify-between text-xs text-text-subtle">
@@ -175,7 +186,7 @@ export const CreateCardModal: React.FC<CreateCardModalProps> = ({
                 type="checkbox"
                 checked={applyBoost}
                 onChange={e => setApplyBoost(e.target.checked)}
-                disabled={!canApplyBoost}
+                disabled={!canApplyBoost || isSubmitting}
                 className="mt-1 h-4 w-4 accent-accent-500"
               />
               <div className="space-y-2">
@@ -201,17 +212,18 @@ export const CreateCardModal: React.FC<CreateCardModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="flex h-12 items-center justify-center rounded-pill border border-border px-4 text-sm font-semibold uppercase tracking-[0.2em] text-text transition hover:border-primary-500 hover:text-primary-300"
+              disabled={isSubmitting}
+              className="flex h-12 items-center justify-center rounded-pill border border-border px-4 text-sm font-semibold uppercase tracking-[0.2em] text-text transition hover:border-primary-500 hover:text-primary-300 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              disabled={!cardText.trim()}
+              disabled={!cardText.trim() || isSubmitting}
               className="flex h-12 items-center justify-center gap-2 rounded-pill bg-grad-heat px-4 text-sm font-semibold uppercase tracking-[0.2em] text-text shadow-heat [--focus-shadow:var(--shadow-heat)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <Plus size={18} />
-              Criar carta
+              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus size={18} />}
+              {isSubmitting ? 'Criando...' : 'Criar carta'}
             </button>
           </div>
         </form>

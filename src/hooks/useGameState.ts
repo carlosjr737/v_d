@@ -1,6 +1,14 @@
 import { useState, useEffect } from 'react';
-import { GameState, Player, Card, IntensityLevel, GameMode } from '../types/game';
+import {
+  GameState,
+  Player,
+  Card,
+  IntensityLevel,
+  GameMode,
+  StartGameResult,
+} from '../types/game';
 import { seedCards } from '../data/seedCards';
+import { fetchCardsByIntensity, createRemoteCard } from '../services/cardService';
 
 const STORAGE_KEY = 'verdade-ou-desafio-game';
 
@@ -17,6 +25,7 @@ const initialGameState: GameState = {
 
 export const useGameState = () => {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
+  const [isStartingGame, setIsStartingGame] = useState(false);
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -35,18 +44,72 @@ export const useGameState = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(gameState));
   }, [gameState]);
 
-  const startGame = (mode: GameMode, intensity: IntensityLevel, players: Player[]) => {
-    const levelCards = seedCards.filter(card => card.level === intensity);
-    setGameState({
-      phase: 'playing',
-      mode,
-      intensity,
-      players: players.map(p => ({ ...p, boostPoints: 3 })),
-      currentPlayerIndex: 0,
-      availableCards: [...levelCards],
-      usedCards: [],
-      currentCard: null,
-    });
+  const startGame = async (
+    mode: GameMode,
+    intensity: IntensityLevel,
+    players: Player[]
+  ): Promise<StartGameResult> => {
+    setIsStartingGame(true);
+
+    let usedFallback = false;
+    let success = true;
+    let errorMessage: string | undefined;
+    let cardsToUse: Card[] = [];
+
+    try {
+      try {
+        const remoteCards = await fetchCardsByIntensity(intensity);
+
+        if (remoteCards.length > 0) {
+          cardsToUse = remoteCards.map(card => ({
+            ...card,
+            isBoosted: Boolean(card.isBoosted),
+          }));
+        } else {
+          usedFallback = true;
+          success = false;
+          errorMessage =
+            'Nenhuma carta foi encontrada no baralho online para esse nível. Usamos o baralho padrão offline.';
+        }
+      } catch (error) {
+        console.error('Erro ao carregar cartas do Firebase:', error);
+        usedFallback = true;
+        success = false;
+        errorMessage =
+          'Não foi possível carregar as cartas online. Usamos o baralho padrão offline.';
+      }
+
+      if (cardsToUse.length === 0) {
+        cardsToUse = seedCards.filter(card => card.level === intensity);
+      }
+
+      if (cardsToUse.length === 0) {
+        usedFallback = true;
+        success = false;
+        errorMessage =
+          errorMessage ??
+          'Não encontramos cartas disponíveis para este nível. Adicione cartas personalizadas para começar.';
+      }
+
+      setGameState({
+        phase: 'playing',
+        mode,
+        intensity,
+        players: players.map(p => ({ ...p, boostPoints: 3 })),
+        currentPlayerIndex: 0,
+        availableCards: [...cardsToUse],
+        usedCards: [],
+        currentCard: null,
+      });
+
+      return {
+        success,
+        usedFallback,
+        errorMessage,
+      };
+    } finally {
+      setIsStartingGame(false);
+    }
   };
 
   const drawCard = (type: 'truth' | 'dare') => {
@@ -123,41 +186,58 @@ export const useGameState = () => {
     }));
   };
 
-  const addCustomCard = (type: 'truth' | 'dare', text: string, applyBoost: boolean) => {
-    if (!gameState.intensity) return;
+  const addCustomCard = async (
+    type: 'truth' | 'dare',
+    text: string,
+    applyBoost: boolean
+  ): Promise<boolean> => {
+    if (!gameState.intensity) return false;
 
+    const intensity = gameState.intensity;
     const currentPlayer = gameState.players[gameState.currentPlayerIndex];
-    
+
     if (applyBoost && currentPlayer.boostPoints < 2) {
       return false; // Not enough points
     }
 
-    const newCard: Card = {
-      id: `custom-${Date.now()}`,
-      type,
-      text,
-      level: gameState.intensity,
-      isBoosted: applyBoost,
-      isCustom: true,
-    };
+    try {
+      const remoteId = await createRemoteCard({
+        type,
+        text,
+        level: intensity,
+        isCustom: true,
+      });
 
-    setGameState(prev => {
-      const updatedPlayers = applyBoost 
-        ? prev.players.map((player, index) => 
-            index === prev.currentPlayerIndex 
-              ? { ...player, boostPoints: player.boostPoints - 2 }
-              : player
-          )
-        : prev.players;
-
-      return {
-        ...prev,
-        availableCards: [...prev.availableCards, newCard],
-        players: updatedPlayers,
+      const newCard: Card = {
+        id: remoteId,
+        type,
+        text,
+        level: intensity,
+        isBoosted: applyBoost,
+        isCustom: true,
       };
-    });
 
-    return true;
+      setGameState(prev => {
+        const updatedPlayers = applyBoost
+          ? prev.players.map((player, index) =>
+              index === prev.currentPlayerIndex
+                ? { ...player, boostPoints: player.boostPoints - 2 }
+                : player
+            )
+          : prev.players;
+
+        return {
+          ...prev,
+          availableCards: [...prev.availableCards, newCard],
+          players: updatedPlayers,
+        };
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Erro ao criar carta personalizada:', error);
+      return false;
+    }
   };
 
   const resetGame = () => {
@@ -173,5 +253,6 @@ export const useGameState = () => {
     passCard,
     addCustomCard,
     resetGame,
+    isStartingGame,
   };
 };

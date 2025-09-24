@@ -1,9 +1,14 @@
 import React, { useState } from 'react';
-import { GameMode, IntensityLevel, Player } from '../types/game';
-import { Users, UserPlus, X, ArrowUp, ArrowDown, Play } from 'lucide-react';
+import { GameMode, IntensityLevel, Player, StartGameResult } from '../types/game';
+import { Users, UserPlus, X, ArrowUp, ArrowDown, Play, Loader2 } from 'lucide-react';
 
 interface SetupScreenProps {
-  onStartGame: (mode: GameMode, intensity: IntensityLevel, players: Player[]) => void;
+  onStartGame: (
+    mode: GameMode,
+    intensity: IntensityLevel,
+    players: Player[]
+  ) => Promise<StartGameResult>;
+  isStarting: boolean;
 }
 
 const intensityLabels: Record<IntensityLevel, string> = {
@@ -20,7 +25,7 @@ const intensityStyles: Record<IntensityLevel, string> = {
   extremo: 'bg-[var(--level-extremo)] text-text',
 };
 
-export const SetupScreen: React.FC<SetupScreenProps> = ({ onStartGame }) => {
+export const SetupScreen: React.FC<SetupScreenProps> = ({ onStartGame, isStarting }) => {
   const [mode, setMode] = useState<GameMode | null>(null);
   const [intensity, setIntensity] = useState<IntensityLevel | null>(null);
   const [players, setPlayers] = useState<Player[]>([
@@ -71,9 +76,25 @@ export const SetupScreen: React.FC<SetupScreenProps> = ({ onStartGame }) => {
     players.every(p => p.name.trim().length > 0) &&
     (mode === 'casal' ? players.length === 2 : players.length >= 3);
 
-  const handleStart = () => {
-    if (canStart) {
-      onStartGame(mode!, intensity!, players);
+  const handleStart = async () => {
+    if (!canStart || isStarting) {
+      return;
+    }
+
+    const sanitizedPlayers = players.map(player => ({
+      ...player,
+      name: player.name.trim(),
+    }));
+
+    try {
+      const result = await onStartGame(mode!, intensity!, sanitizedPlayers);
+
+      if (result.errorMessage) {
+        alert(result.errorMessage);
+      }
+    } catch (error) {
+      console.error('Erro ao iniciar o jogo:', error);
+      alert('Não foi possível iniciar o jogo. Tente novamente.');
     }
   };
 
@@ -239,11 +260,12 @@ export const SetupScreen: React.FC<SetupScreenProps> = ({ onStartGame }) => {
             <section className="space-y-3">
               <button
                 onClick={handleStart}
-                disabled={!canStart}
+                disabled={!canStart || isStarting}
+                aria-busy={isStarting}
                 className="flex h-[var(--button-height)] w-full items-center justify-center gap-3 rounded-pill bg-grad-heat px-6 text-lg font-semibold uppercase tracking-[0.24em] text-text shadow-heat [--focus-shadow:var(--shadow-heat)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                <Play size={22} />
-                Iniciar sessão
+                {isStarting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Play size={22} />}
+                {isStarting ? 'Sincronizando baralho...' : 'Iniciar sessão'}
               </button>
               {!canStart && (
                 <div className="rounded-card border border-dashed border-border/60 bg-bg-900/50 p-4 text-center text-sm text-text-subtle">

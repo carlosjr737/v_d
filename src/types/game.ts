@@ -27,3 +27,9 @@ export interface GameState {
   usedCards: Card[];
   currentCard: Card | null;
 }
+
+export interface StartGameResult {
+  success: boolean;
+  usedFallback: boolean;
+  errorMessage?: string;
+}
