@@ -7,6 +7,7 @@ import { HUD } from '../ui/HUD';
 import { ChoiceGrid } from '../ui/ChoiceGrid';
 import { CardReveal } from '../ui/CardReveal';
 import { Dock } from '../ui/Dock';
+import { BeatReveal, WarmReveal, SparkOnSuccess } from '../ui/animations/VdAnim';
 
 
 interface GameScreenProps {
@@ -42,6 +43,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     gameState.currentCard ? 'revealed' : 'idle'
   );
   const [displayedCard, setDisplayedCard] = useState<Card | null>(gameState.currentCard);
+  const [ui, setUi] = useState({ sweeping: false, justFulfilled: false });
 
   const drawIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const drawTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -173,6 +175,21 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     }
   }, [cardPhase, clearCardAnimationTimers, gameState.currentCard]);
 
+  const handleDraw = (kind: 'truth' | 'dare') => {
+    setUi(s => ({ ...s, sweeping: true }));
+    
+    // Vibração tátil se disponível
+    if ('vibrate' in navigator) {
+      navigator.vibrate([20, 50, 20]);
+    }
+    
+    setTimeout(() => {
+      // Chama a lógica existente
+      handleDrawCard(kind);
+      setUi(s => ({ ...s, sweeping: false }));
+    }, 650); // duração do batimento
+  };
+
   const handleDrawCard = (type: 'truth' | 'dare') => {
     if (!currentPlayer || cardPhase === 'drawing' || cardPhase === 'preparing') {
       return;
@@ -200,6 +217,12 @@ export const GameScreen: React.FC<GameScreenProps> = ({
         setCardPhase('revealed');
       }, 900)
     );
+  };
+
+  const handleFulfill = () => {
+    onFulfillCard(); // lógica existente
+    setUi(s => ({ ...s, justFulfilled: true }));
+    setTimeout(() => setUi(s => ({ ...s, justFulfilled: false })), 520);
   };
 
   const drawHighlightText = finalDrawName ?? highlightedName ?? 'Girando nomes...';
@@ -258,22 +281,28 @@ export const GameScreen: React.FC<GameScreenProps> = ({
       </div>
       <div className="overflow-hidden">
         {cardPhase === 'idle' ? (
-          <ChoiceGrid
-            onTruth={() => handleDrawCard('truth')}
-            onDare={() => handleDrawCard('dare')}
-            disabled={!canDrawCard}
-          />
+          <BeatReveal run={ui.sweeping}>
+            <ChoiceGrid
+              onTruth={() => handleDraw('truth')}
+              onDare={() => handleDraw('dare')}
+              disabled={!canDrawCard}
+            />
+          </BeatReveal>
         ) : (
-          <CardReveal
-            cardText={activeCard?.text ?? ''}
-            deckTotal={deckSummary}
-            pileCount={pileCount}
-            hasBoost={hasBoost}
-            onFulfill={onFulfillCard}
-            onPass={onPassCard}
-            canResolve={canResolveCard}
-            isLoading={isCardLoading}
-          />
+          <SparkOnSuccess success={ui.justFulfilled}>
+            <WarmReveal show={!!activeCard}>
+              <CardReveal
+                cardText={activeCard?.text ?? ''}
+                deckTotal={deckSummary}
+                pileCount={pileCount}
+                hasBoost={hasBoost}
+                onFulfill={handleFulfill}
+                onPass={onPassCard}
+                canResolve={canResolveCard}
+                isLoading={isCardLoading}
+              />
+            </WarmReveal>
+          </SparkOnSuccess>
         )}
       </div>
       <div>
@@ -292,22 +321,28 @@ export const GameScreen: React.FC<GameScreenProps> = ({
         </div>
         <div className="overflow-hidden">
           {cardPhase === 'idle' ? (
-            <ChoiceGrid
-              onTruth={() => handleDrawCard('truth')}
-              onDare={() => handleDrawCard('dare')}
-              disabled={!canDrawCard}
-            />
+            <BeatReveal run={ui.sweeping}>
+              <ChoiceGrid
+                onTruth={() => handleDraw('truth')}
+                onDare={() => handleDraw('dare')}
+                disabled={!canDrawCard}
+              />
+            </BeatReveal>
           ) : (
-            <CardReveal
-              cardText={activeCard?.text ?? ''}
-              deckTotal={deckSummary}
-              pileCount={pileCount}
-              hasBoost={hasBoost}
-              onFulfill={onFulfillCard}
-              onPass={onPassCard}
-              canResolve={canResolveCard}
-              isLoading={isCardLoading}
-            />
+            <SparkOnSuccess success={ui.justFulfilled}>
+              <WarmReveal show={!!activeCard}>
+                <CardReveal
+                  cardText={activeCard?.text ?? ''}
+                  deckTotal={deckSummary}
+                  pileCount={pileCount}
+                  hasBoost={hasBoost}
+                  onFulfill={handleFulfill}
+                  onPass={onPassCard}
+                  canResolve={canResolveCard}
+                  isLoading={isCardLoading}
+                />
+              </WarmReveal>
+            </SparkOnSuccess>
           )}
         </div>
         <div>
