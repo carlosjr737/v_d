@@ -77,6 +77,7 @@ export const SetupScreen: React.FC<SetupScreenProps> = ({ onStartGame, isStartin
     return timeoutId;
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const performShuffleAnimation = (playersToShuffle: Player[]): Promise<Player[]> => {
     clearShuffleTimers();
 
