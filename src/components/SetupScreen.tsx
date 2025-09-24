@@ -116,7 +116,9 @@ export const SetupScreen: React.FC<SetupScreenProps> = ({ onStartGame, isStartin
   }, []);
 
 
+
   const runShufflePreview = (playersToReveal: Player[]): Promise<void> => {
+
     clearShuffleTimers();
 
     if (!playersToReveal.length) {
