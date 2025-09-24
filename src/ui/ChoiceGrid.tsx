@@ -8,24 +8,25 @@ interface ChoiceGridProps {
 
 export const ChoiceGrid: React.FC<ChoiceGridProps> = ({ onTruth, onDare, disabled }) => {
   return (
-    <div className="grid h-full grid-rows-[minmax(0,1fr)] items-center">
-      <div className="grid grid-cols-2 gap-3 p-3 max-[390px]:gap-2">
+    <div className="flex h-full items-center justify-center p-4">
+      <div className="grid w-full max-w-sm grid-cols-2 gap-4">
         <button
           type="button"
           onClick={onTruth}
           disabled={disabled}
-          className="h-14 max-[390px]:h-12 rounded-full text-white text-[clamp(14px,3.6vw,16px)] font-semibold tracking-[0.1em] shadow-heat transition disabled:cursor-not-allowed disabled:opacity-40"
-          style={{ background: 'var(--grad-heat)' }}
+          className="group flex h-32 flex-col items-center justify-center gap-3 rounded-card bg-grad-heat text-white shadow-heat transition-all hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          ❤️ Verdade
+          <span className="text-4xl">❤️</span>
+          <span className="font-display text-2xl font-bold">VERDADE</span>
         </button>
         <button
           type="button"
           onClick={onDare}
           disabled={disabled}
-          className="h-14 max-[390px]:h-12 rounded-full border border-[var(--color-border)] bg-[var(--color-bg-900)]/70 text-[clamp(14px,3.6vw,16px)] font-semibold tracking-[0.1em] text-white transition hover:border-[var(--color-primary-500)] disabled:cursor-not-allowed disabled:opacity-40"
+          className="group flex h-32 flex-col items-center justify-center gap-3 rounded-card border-2 border-border bg-bg-800/80 text-white transition-all hover:scale-105 hover:border-primary-500 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          ⚡ Desafio
+          <span className="text-4xl">⚡</span>
+          <span className="font-display text-2xl font-bold">DESAFIO</span>
         </button>
       </div>
     </div>

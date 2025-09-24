@@ -20,25 +20,16 @@ export const SetupFooter: React.FC<SetupFooterProps> = ({
   const startDisabled = !canStart;
 
   return (
-    <footer className="grid grid-cols-3 gap-3 border-t border-[var(--color-border)] bg-[var(--color-bg-800)]/60 p-3 backdrop-blur max-[390px]:gap-2">
-      <button
-        type="button"
-        onClick={onDeck}
-        disabled={deckDisabled}
-        className="h-12 rounded-full border border-[var(--color-border)] text-sm font-semibold text-text transition-colors hover:text-primary-200 disabled:cursor-not-allowed disabled:opacity-40 max-[390px]:h-10"
-      >
-        {deckLabel}
-      </button>
-      <div />
+    <footer className="border-t border-border bg-bg-800/90 p-4 backdrop-blur">
       <button
         type="button"
         onClick={onStart}
         disabled={startDisabled}
         aria-busy={isBusy}
-        className="flex h-12 items-center justify-center gap-2 rounded-full bg-[var(--grad-heat)] text-sm font-semibold text-white shadow-heat transition-opacity disabled:cursor-not-allowed disabled:opacity-50 max-[390px]:h-10"
+        className="flex h-16 w-full items-center justify-center gap-3 rounded-pill bg-grad-heat font-display text-xl font-bold text-white shadow-heat transition-all hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {isBusy && <Loader2 className="h-4 w-4 animate-spin" />}
-        {isBusy ? 'Preparando...' : 'Começar ▶'}
+        {isBusy ? 'PREPARANDO...' : 'COMEÇAR ▶'}
       </button>
     </footer>
   );
