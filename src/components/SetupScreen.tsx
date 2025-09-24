@@ -1,4 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+
+import React, { useState } from 'react';
+
 import {
   GameMode,
   IntensityLevel,
@@ -180,9 +182,9 @@ export const SetupScreen: React.FC<SetupScreenProps> = ({ onStartGame, isStartin
     }));
 
     try {
-      const finalOrder = await performShuffleAnimation(sanitizedPlayers);
 
-      const result = await onStartGame(mode!, intensity!, finalOrder, {
+      const result = await onStartGame(mode!, intensity!, sanitizedPlayers, {
+
         shouldShuffle: false,
       });
 
@@ -297,7 +299,9 @@ export const SetupScreen: React.FC<SetupScreenProps> = ({ onStartGame, isStartin
                   Jogadores ({players.length} {mode === 'casal' ? '- máx 2' : '- mín 3'})
                 </h3>
                 <p className="text-xs text-text-subtle">
-                  Os nomes serão sorteados automaticamente quando a sessão começar.
+
+                  A cada rodada um nome será sorteado automaticamente.
+
                 </p>
               </div>
 
@@ -375,16 +379,16 @@ export const SetupScreen: React.FC<SetupScreenProps> = ({ onStartGame, isStartin
                 aria-busy={isStarting || isShuffling}
                 className="flex h-[var(--button-height)] w-full items-center justify-center gap-3 rounded-pill bg-grad-heat px-6 text-lg font-semibold uppercase tracking-[0.24em] text-text shadow-heat [--focus-shadow:var(--shadow-heat)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {isStarting || isShuffling ? (
+
+                {isStarting ? (
+
                   <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
                   <Play size={22} />
                 )}
-                {isShuffling
-                  ? 'Sorteando jogadores...'
-                  : isStarting
-                  ? 'Sincronizando baralho...'
-                  : 'Iniciar sessão'}
+
+                {isStarting ? 'Sincronizando baralho...' : 'Iniciar sessão'}
+
               </button>
               {!canStart && (
                 <div className="rounded-card border border-dashed border-border/60 bg-bg-900/50 p-4 text-center text-sm text-text-subtle">

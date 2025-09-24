@@ -13,6 +13,7 @@ function App() {
     addCustomCard,
     resetGame,
     isStartingGame,
+    drawNextPlayer,
   } = useGameState();
 
   return (
@@ -30,6 +31,7 @@ function App() {
             onPassCard={passCard}
             onAddCustomCard={addCustomCard}
             onResetGame={resetGame}
+            onDrawNextPlayer={drawNextPlayer}
           />
         )}
       </div>

@@ -19,7 +19,7 @@ const initialGameState: GameState = {
   mode: null,
   intensity: null,
   players: [],
-  currentPlayerIndex: 0,
+  currentPlayerIndex: null,
   availableCards: [],
   usedCards: [],
   currentCard: null,
@@ -107,7 +107,9 @@ export const useGameState = () => {
         mode,
         intensity,
         players: sanitizedPlayers.map(p => ({ ...p, boostPoints: 3 })),
-        currentPlayerIndex: 0,
+
+        currentPlayerIndex: null,
+
         availableCards: [...cardsToUse],
         usedCards: [],
         currentCard: null,
@@ -124,6 +126,10 @@ export const useGameState = () => {
   };
 
   const drawCard = (type: 'truth' | 'dare') => {
+    if (gameState.currentPlayerIndex === null) {
+      return null;
+    }
+
     const { availableCards, intensity } = gameState;
     
     // First, check for boosted cards of the chosen type
@@ -161,22 +167,28 @@ export const useGameState = () => {
 
   const fulfillCard = () => {
     if (!gameState.currentCard) return;
-    
+
     setGameState(prev => {
-      const updatedCards = prev.availableCards.filter(card => card.id !== prev.currentCard!.id);
-      const updatedUsedCards = [...prev.usedCards];
-      
-      // Only add to used cards if it wasn't boosted (boosted cards get discarded)
-      if (!prev.currentCard!.isBoosted) {
-        updatedUsedCards.push(prev.currentCard!);
+      if (!prev.currentCard) {
+        return prev;
       }
 
-      // Award boost point (max 5)
-      const updatedPlayers = prev.players.map((player, index) => 
-        index === prev.currentPlayerIndex 
-          ? { ...player, boostPoints: Math.min(player.boostPoints + 1, 5) }
-          : player
-      );
+      const updatedCards = prev.availableCards.filter(card => card.id !== prev.currentCard.id);
+      const updatedUsedCards = [...prev.usedCards];
+
+      if (!prev.currentCard.isBoosted) {
+        updatedUsedCards.push(prev.currentCard);
+      }
+
+      const shouldRewardBoost = prev.currentPlayerIndex !== null;
+
+      const updatedPlayers = shouldRewardBoost
+        ? prev.players.map((player, index) =>
+            index === prev.currentPlayerIndex
+              ? { ...player, boostPoints: Math.min(player.boostPoints + 1, 5) }
+              : player
+          )
+        : prev.players;
 
       return {
         ...prev,
@@ -184,7 +196,7 @@ export const useGameState = () => {
         usedCards: updatedUsedCards,
         players: updatedPlayers,
         currentCard: null,
-        currentPlayerIndex: (prev.currentPlayerIndex + 1) % prev.players.length,
+        currentPlayerIndex: null,
       };
     });
   };
@@ -193,8 +205,28 @@ export const useGameState = () => {
     setGameState(prev => ({
       ...prev,
       currentCard: null,
-      currentPlayerIndex: (prev.currentPlayerIndex + 1) % prev.players.length,
+      currentPlayerIndex: null,
     }));
+  };
+
+  const drawNextPlayer = () => {
+    let selectedPlayer: Player | null = null;
+
+    setGameState(prev => {
+      if (prev.players.length === 0) {
+        return prev;
+      }
+
+      const randomIndex = Math.floor(Math.random() * prev.players.length);
+      selectedPlayer = prev.players[randomIndex];
+
+      return {
+        ...prev,
+        currentPlayerIndex: randomIndex,
+      };
+    });
+
+    return selectedPlayer;
   };
 
   const addCustomCard = async (
@@ -205,9 +237,10 @@ export const useGameState = () => {
     if (!gameState.intensity) return false;
 
     const intensity = gameState.intensity;
-    const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+    const currentIndex = gameState.currentPlayerIndex;
+    const currentPlayer = currentIndex !== null ? gameState.players[currentIndex] : null;
 
-    if (applyBoost && currentPlayer.boostPoints < 2) {
+    if (applyBoost && (!currentPlayer || currentPlayer.boostPoints < 2)) {
       return false; // Not enough points
     }
 
@@ -229,7 +262,7 @@ export const useGameState = () => {
       };
 
       setGameState(prev => {
-        const updatedPlayers = applyBoost
+        const updatedPlayers = applyBoost && prev.currentPlayerIndex !== null
           ? prev.players.map((player, index) =>
               index === prev.currentPlayerIndex
                 ? { ...player, boostPoints: player.boostPoints - 2 }
@@ -262,6 +295,7 @@ export const useGameState = () => {
     drawCard,
     fulfillCard,
     passCard,
+    drawNextPlayer,
     addCustomCard,
     resetGame,
     isStartingGame,

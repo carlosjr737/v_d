@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { GameState, Card } from '../types/game';
-import { Heart, Zap, Plus, Eye, RotateCcw, CheckCircle, XCircle } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { GameState, Card, Player } from '../types/game';
+import { Heart, Zap, Plus, Eye, RotateCcw, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { CreateCardModal } from './CreateCardModal';
 import { DeckModal } from './DeckModal';
 
@@ -15,6 +15,7 @@ interface GameScreenProps {
     applyBoost: boolean
   ) => Promise<boolean>;
   onResetGame: () => void;
+  onDrawNextPlayer: () => Player | null;
 }
 
 const intensityLabels = {
@@ -43,22 +44,140 @@ export const GameScreen: React.FC<GameScreenProps> = ({
   onPassCard,
   onAddCustomCard,
   onResetGame,
+  onDrawNextPlayer,
 }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDeckModal, setShowDeckModal] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [isDrawingPlayer, setIsDrawingPlayer] = useState(false);
+  const [highlightedName, setHighlightedName] = useState<string | null>(null);
+  const [finalDrawName, setFinalDrawName] = useState<string | null>(null);
 
-  const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+  const drawIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const drawTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const revealTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const currentPlayer =
+    gameState.currentPlayerIndex !== null
+      ? gameState.players[gameState.currentPlayerIndex]
+      : null;
   const { currentCard } = gameState;
+  const intensity = gameState.intensity!;
+
+  const clearDrawTimers = useCallback(() => {
+    if (drawIntervalRef.current) {
+      clearInterval(drawIntervalRef.current);
+      drawIntervalRef.current = null;
+    }
+    if (drawTimeoutRef.current) {
+      clearTimeout(drawTimeoutRef.current);
+      drawTimeoutRef.current = null;
+    }
+    if (revealTimeoutRef.current) {
+      clearTimeout(revealTimeoutRef.current);
+      revealTimeoutRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      clearDrawTimers();
+    };
+  }, [clearDrawTimers]);
+
+  const startPlayerDraw = useCallback(() => {
+    if (isDrawingPlayer || gameState.players.length === 0) {
+      return;
+    }
+
+    clearDrawTimers();
+    setIsDrawingPlayer(true);
+    setHighlightedName(null);
+    setFinalDrawName(null);
+
+    drawIntervalRef.current = setInterval(() => {
+      const randomPlayer =
+        gameState.players[Math.floor(Math.random() * gameState.players.length)];
+      setHighlightedName(randomPlayer.name);
+    }, 120);
+
+    const highlightDuration = Math.max(2200, gameState.players.length * 260);
+
+    drawTimeoutRef.current = setTimeout(() => {
+      if (drawIntervalRef.current) {
+        clearInterval(drawIntervalRef.current);
+        drawIntervalRef.current = null;
+      }
+      drawTimeoutRef.current = null;
+
+      const selectedPlayer = onDrawNextPlayer();
+
+      if (selectedPlayer) {
+        setHighlightedName(selectedPlayer.name);
+        setFinalDrawName(selectedPlayer.name);
+
+        revealTimeoutRef.current = setTimeout(() => {
+          setIsDrawingPlayer(false);
+          setHighlightedName(null);
+          setFinalDrawName(null);
+          revealTimeoutRef.current = null;
+        }, 1100);
+      } else {
+        setIsDrawingPlayer(false);
+        setHighlightedName(null);
+        setFinalDrawName(null);
+      }
+    }, highlightDuration);
+  }, [clearDrawTimers, gameState.players, isDrawingPlayer, onDrawNextPlayer]);
+
+  useEffect(() => {
+    if (gameState.phase !== 'playing') {
+      return;
+    }
+
+    if (gameState.players.length === 0) {
+      return;
+    }
+
+    if (gameState.currentPlayerIndex !== null) {
+      return;
+    }
+
+    if (isDrawingPlayer) {
+      return;
+    }
+
+    startPlayerDraw();
+  }, [gameState.phase, gameState.players, gameState.currentPlayerIndex, isDrawingPlayer, startPlayerDraw]);
+
+  useEffect(() => {
+    if (!currentPlayer && showCreateModal) {
+      setShowCreateModal(false);
+    }
+  }, [currentPlayer, showCreateModal]);
 
   const handleDrawCard = (type: 'truth' | 'dare') => {
+    if (!currentPlayer) {
+      return;
+    }
+
     const card = onDrawCard(type);
     if (!card) {
       alert(`Não há mais cartas de ${type === 'truth' ? 'Verdade' : 'Desafio'} disponíveis!`);
     }
   };
 
-  const intensity = gameState.intensity!;
+  const playerNameDisplay = currentPlayer?.name ?? finalDrawName ?? highlightedName ?? 'Sorteando jogador...';
+  const playerBoostLabel = currentPlayer
+    ? `${currentPlayer.boostPoints} pontos de boost`
+    : 'Aguardando sorteio';
+  const playerPositionLabel =
+    gameState.currentPlayerIndex !== null
+      ? `Jogador ${gameState.currentPlayerIndex + 1} de ${gameState.players.length}`
+      : `${gameState.players.length} jogadores na disputa`;
+
+  const drawHighlightText = finalDrawName ?? highlightedName ?? 'Girando nomes...';
+  const drawStatusText = finalDrawName ? 'Próximo jogador definido!' : 'Girando nomes...';
 
   return (
     <div className="flex flex-1 justify-center px-4 py-10 sm:px-6 lg:px-8">
@@ -70,12 +189,12 @@ export const GameScreen: React.FC<GameScreenProps> = ({
                 Vez de jogar
               </span>
               <h2 className="text-4xl sm:text-5xl font-display uppercase tracking-[0.18em] text-text">
-                {currentPlayer.name}
+                {playerNameDisplay}
               </h2>
               <div className="flex flex-wrap items-center gap-3 text-sm text-text-subtle">
                 <span className="inline-flex items-center gap-2 rounded-pill border border-border/50 bg-bg-900/60 px-4 py-1">
                   <Zap size={16} />
-                  {currentPlayer.boostPoints} pontos de boost
+                  {playerBoostLabel}
                 </span>
                 <span
                   className={`inline-flex items-center gap-2 rounded-pill px-4 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-text ${levelBarColors[intensity]}`}
@@ -88,9 +207,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
               <span className="rounded-pill border border-border/50 bg-bg-900/60 px-4 py-1 uppercase tracking-[0.4em]">
                 rodada viva
               </span>
-              <span>
-                Jogador {gameState.currentPlayerIndex + 1} de {gameState.players.length}
-              </span>
+              <span>{playerPositionLabel}</span>
             </div>
           </div>
         </header>
@@ -112,14 +229,16 @@ export const GameScreen: React.FC<GameScreenProps> = ({
                 <div className="grid gap-4 sm:grid-cols-2">
                   <button
                     onClick={() => handleDrawCard('truth')}
-                    className="group flex h-[var(--button-height)] items-center justify-center gap-3 rounded-pill bg-[var(--color-primary-500)] px-6 text-lg font-semibold uppercase tracking-[0.2em] text-[var(--color-bg-900)] shadow-heat [--focus-shadow:var(--shadow-heat)] transition hover:brightness-110"
+                    disabled={!currentPlayer || isDrawingPlayer}
+                    className="group flex h-[var(--button-height)] items-center justify-center gap-3 rounded-pill bg-[var(--color-primary-500)] px-6 text-lg font-semibold uppercase tracking-[0.2em] text-[var(--color-bg-900)] shadow-heat [--focus-shadow:var(--shadow-heat)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <Heart className="h-6 w-6" />
                     Verdade
                   </button>
                   <button
                     onClick={() => handleDrawCard('dare')}
-                    className="group flex h-[var(--button-height)] items-center justify-center gap-3 rounded-pill bg-[var(--color-secondary-500)] px-6 text-lg font-semibold uppercase tracking-[0.2em] text-[var(--color-bg-900)] shadow-heat [--focus-shadow:var(--shadow-heat)] transition hover:brightness-110"
+                    disabled={!currentPlayer || isDrawingPlayer}
+                    className="group flex h-[var(--button-height)] items-center justify-center gap-3 rounded-pill bg-[var(--color-secondary-500)] px-6 text-lg font-semibold uppercase tracking-[0.2em] text-[var(--color-bg-900)] shadow-heat [--focus-shadow:var(--shadow-heat)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <Zap className="h-6 w-6" />
                     Desafio
@@ -183,7 +302,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({
         <div className="grid gap-3 sm:grid-cols-3">
           <button
             onClick={() => setShowCreateModal(true)}
-            className="flex h-14 items-center justify-center gap-2 rounded-pill border border-border/60 bg-bg-800/70 px-4 text-sm font-semibold uppercase tracking-[0.2em] text-text transition hover:border-primary-500 hover:text-primary-300"
+            disabled={!currentPlayer}
+            className="flex h-14 items-center justify-center gap-2 rounded-pill border border-border/60 bg-bg-800/70 px-4 text-sm font-semibold uppercase tracking-[0.2em] text-text transition hover:border-primary-500 hover:text-primary-300 disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Plus size={18} />
             Criar carta
@@ -204,7 +324,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
           </button>
         </div>
 
-        {showCreateModal && (
+        {showCreateModal && currentPlayer && (
           <CreateCardModal
             currentPlayer={currentPlayer}
             intensity={intensity}
@@ -251,6 +371,33 @@ export const GameScreen: React.FC<GameScreenProps> = ({
           </div>
         )}
       </div>
+
+      {isDrawingPlayer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay-veil)]/95 px-4 py-6 backdrop-blur-md">
+          <div className="relative w-full max-w-md overflow-hidden rounded-card border border-border/60 bg-bg-900/85 p-8 text-center shadow-heat [--focus-shadow:var(--shadow-heat)]">
+            <div className="pointer-events-none absolute -inset-20 opacity-40" aria-hidden="true">
+              <div className="absolute inset-0 animate-spin-slower bg-grad-heat blur-3xl" />
+            </div>
+            <div className="pointer-events-none absolute inset-0 bg-[var(--texture-noise)] opacity-20 mix-blend-soft-light" aria-hidden="true" />
+            <div className="relative z-10 space-y-5">
+              <span className="inline-flex items-center gap-2 rounded-pill border border-border/40 bg-bg-800/70 px-5 py-2 text-xs font-semibold uppercase tracking-[0.4em] text-text-subtle animate-shuffle-pulse">
+                Sorteando próxima rodada
+              </span>
+              <div className="min-h-[3rem] text-3xl font-display uppercase tracking-[0.18em] text-text" aria-live="polite">
+                {drawHighlightText}
+              </div>
+              <div className="flex items-center justify-center gap-2 text-xs uppercase tracking-[0.3em] text-text-subtle">
+                {finalDrawName ? (
+                  <CheckCircle className="h-4 w-4 text-accent-500" />
+                ) : (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                )}
+                <span>{drawStatusText}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

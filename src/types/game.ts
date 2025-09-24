@@ -22,7 +22,7 @@ export interface GameState {
   mode: GameMode | null;
   intensity: IntensityLevel | null;
   players: Player[];
-  currentPlayerIndex: number;
+  currentPlayerIndex: number | null;
   availableCards: Card[];
   usedCards: Card[];
   currentCard: Card | null;
