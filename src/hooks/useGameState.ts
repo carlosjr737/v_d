@@ -9,7 +9,13 @@ import {
   StartGameOptions,
 } from '@/types/game';
 import { seedCards } from '@/data/seedCards';
-import { fetchCardsByIntensity, createRemoteCard } from '@/services/cardService';
+
+import {
+  fetchCardsByIntensity,
+  createRemoteCard,
+  REMOTE_DECK_ERROR_FLAG,
+} from '@/services/cardService';
+
 import { shuffleArray } from '@/utils/shuffle';
 import { sanitizeGameState } from '@/utils/sanitizeGameState';
 
@@ -102,26 +108,23 @@ export const useGameState = () => {
     let cardsToUse: Card[] = [];
 
     try {
-      try {
-        const remoteCards = await fetchCardsByIntensity(intensity);
+      const remoteCards = await fetchCardsByIntensity(intensity);
+      const remoteMetadata = remoteCards as {
+        [REMOTE_DECK_ERROR_FLAG]?: true;
+      };
+      const remoteFailed = Boolean(remoteMetadata[REMOTE_DECK_ERROR_FLAG]);
 
-        if (remoteCards.length > 0) {
-          cardsToUse = remoteCards.map(card => ({
-            ...card,
-            isBoosted: Boolean(card.isBoosted),
-          }));
-        } else {
-          usedFallback = true;
-          success = false;
-          errorMessage =
-            'Nenhuma carta foi encontrada no baralho online para esse nível. Usamos o baralho padrão offline.';
-        }
-      } catch (error) {
-        console.error('Erro ao carregar cartas do Firebase:', error);
+      if (remoteCards.length > 0) {
+        cardsToUse = remoteCards.map(card => ({
+          ...card,
+          isBoosted: Boolean(card.isBoosted),
+        }));
+      } else {
         usedFallback = true;
         success = false;
-        errorMessage =
-          'Não foi possível carregar as cartas online. Usamos o baralho padrão offline.';
+        errorMessage = remoteFailed
+          ? 'Não foi possível carregar as cartas online. Usamos o baralho padrão offline.'
+          : 'Nenhuma carta foi encontrada no baralho online para esse nível. Usamos o baralho padrão offline.';
       }
 
       if (cardsToUse.length === 0) {
@@ -154,6 +157,11 @@ export const useGameState = () => {
         usedFallback,
         errorMessage,
       };
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.warn('Erro inesperado ao carregar cartas remotas:', error);
+      }
+      throw error;
     } finally {
       setIsStartingGame(false);
     }
