@@ -33,3 +33,7 @@ export interface StartGameResult {
   usedFallback: boolean;
   errorMessage?: string;
 }
+
+export interface StartGameOptions {
+  shouldShuffle?: boolean;
+}

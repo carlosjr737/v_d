@@ -6,9 +6,11 @@ import {
   IntensityLevel,
   GameMode,
   StartGameResult,
+  StartGameOptions,
 } from '../types/game';
 import { seedCards } from '../data/seedCards';
 import { fetchCardsByIntensity, createRemoteCard } from '../services/cardService';
+import { shuffleArray } from '../utils/shuffle';
 
 const STORAGE_KEY = 'verdade-ou-desafio-game';
 
@@ -47,9 +49,18 @@ export const useGameState = () => {
   const startGame = async (
     mode: GameMode,
     intensity: IntensityLevel,
-    players: Player[]
+    players: Player[],
+    options?: StartGameOptions
   ): Promise<StartGameResult> => {
     setIsStartingGame(true);
+
+    const shouldShuffle = options?.shouldShuffle ?? true;
+    const preparedPlayers = shouldShuffle ? shuffleArray(players) : players;
+
+    const sanitizedPlayers = preparedPlayers.map(player => ({
+      ...player,
+      name: player.name.trim(),
+    }));
 
     let usedFallback = false;
     let success = true;
@@ -95,7 +106,7 @@ export const useGameState = () => {
         phase: 'playing',
         mode,
         intensity,
-        players: players.map(p => ({ ...p, boostPoints: 3 })),
+        players: sanitizedPlayers.map(p => ({ ...p, boostPoints: 3 })),
         currentPlayerIndex: 0,
         availableCards: [...cardsToUse],
         usedCards: [],
