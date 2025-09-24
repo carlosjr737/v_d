@@ -9,7 +9,11 @@ interface GameScreenProps {
   onDrawCard: (type: 'truth' | 'dare') => Card | null;
   onFulfillCard: () => void;
   onPassCard: () => void;
-  onAddCustomCard: (type: 'truth' | 'dare', text: string, applyBoost: boolean) => boolean;
+  onAddCustomCard: (
+    type: 'truth' | 'dare',
+    text: string,
+    applyBoost: boolean
+  ) => Promise<boolean>;
   onResetGame: () => void;
 }
 

@@ -12,6 +12,7 @@ function App() {
     passCard,
     addCustomCard,
     resetGame,
+    isStartingGame,
   } = useGameState();
 
   return (
@@ -20,7 +21,7 @@ function App() {
       <div className="pointer-events-none absolute inset-0 bg-[var(--texture-noise)] opacity-40 mix-blend-soft-light" aria-hidden="true" />
       <div className="relative z-10 flex min-h-screen flex-col">
         {gameState.phase === 'setup' ? (
-          <SetupScreen onStartGame={startGame} />
+          <SetupScreen onStartGame={startGame} isStarting={isStartingGame} />
         ) : (
           <GameScreen
             gameState={gameState}
