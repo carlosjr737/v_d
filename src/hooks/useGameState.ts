@@ -29,22 +29,36 @@ export const useGameState = () => {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
   const [isStartingGame, setIsStartingGame] = useState(false);
 
+  const isBrowser = typeof window !== 'undefined';
+
   // Load from localStorage on mount
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        setGameState(JSON.parse(saved));
-      } catch (error) {
-        console.error('Error loading game state:', error);
-      }
+    if (!isBrowser) {
+      return;
     }
-  }, []);
+
+    try {
+      const saved = window.localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        setGameState(JSON.parse(saved));
+      }
+    } catch (error) {
+      console.error('Error loading game state:', error);
+    }
+  }, [isBrowser]);
 
   // Save to localStorage whenever state changes
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(gameState));
-  }, [gameState]);
+    if (!isBrowser) {
+      return;
+    }
+
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(gameState));
+    } catch (error) {
+      console.error('Error saving game state:', error);
+    }
+  }, [gameState, isBrowser]);
 
   const startGame = async (
     mode: GameMode,
@@ -286,7 +300,13 @@ export const useGameState = () => {
 
   const resetGame = () => {
     setGameState(initialGameState);
-    localStorage.removeItem(STORAGE_KEY);
+    if (isBrowser) {
+      try {
+        window.localStorage.removeItem(STORAGE_KEY);
+      } catch (error) {
+        console.error('Error clearing saved game state:', error);
+      }
+    }
   };
 
   return {
