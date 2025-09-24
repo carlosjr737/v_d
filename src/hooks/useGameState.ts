@@ -7,10 +7,11 @@ import {
   GameMode,
   StartGameResult,
   StartGameOptions,
-} from '../types/game';
-import { seedCards } from '../data/seedCards';
-import { fetchCardsByIntensity, createRemoteCard } from '../services/cardService';
-import { shuffleArray } from '../utils/shuffle';
+} from '@/types/game';
+import { seedCards } from '@/data/seedCards';
+import { fetchCardsByIntensity, createRemoteCard } from '@/services/cardService';
+import { shuffleArray } from '@/utils/shuffle';
+import { sanitizeGameState } from '@/utils/sanitizeGameState';
 
 const STORAGE_KEY = 'verdade-ou-desafio-game';
 
@@ -25,180 +26,40 @@ const initialGameState: GameState = {
   currentCard: null,
 };
 
-const intensityLevels: IntensityLevel[] = ['leve', 'medio', 'pesado', 'extremo'];
-const gameModes: GameMode[] = ['grupo', 'casal'];
-
-
-const getSafeLocalStorage = (): Storage | null => {
-  try {
-    if (typeof globalThis === 'undefined') {
-      return null;
-    }
-
-    if (!('localStorage' in globalThis)) {
-      return null;
-    }
-
-    const storage = (globalThis as typeof globalThis & { localStorage?: Storage }).localStorage ?? null;
-
-    return storage ?? null;
-  } catch (error) {
-    console.error('Error accessing localStorage:', error);
+function safeRestore(): GameState | null {
+  if (typeof window === 'undefined' || !('localStorage' in window)) {
     return null;
-  }
-};
-
-const isIntensityLevel = (value: unknown): value is IntensityLevel =>
-  typeof value === 'string' && intensityLevels.includes(value as IntensityLevel);
-
-const isGameMode = (value: unknown): value is GameMode =>
-  typeof value === 'string' && gameModes.includes(value as GameMode);
-
-const sanitizePlayers = (players: unknown): Player[] => {
-  if (!Array.isArray(players)) {
-    return [];
-  }
-
-  return players
-    .map((rawPlayer, index) => {
-      if (!rawPlayer || typeof rawPlayer !== 'object') {
-        return null;
-      }
-
-      const candidate = rawPlayer as Partial<Player> & { name?: unknown; boostPoints?: unknown; id?: unknown };
-      const name = typeof candidate.name === 'string' ? candidate.name : '';
-      const id = typeof candidate.id === 'string' && candidate.id.trim().length > 0 ? candidate.id : `player-${index}`;
-      const boostPoints =
-        typeof candidate.boostPoints === 'number' && Number.isFinite(candidate.boostPoints)
-          ? Math.max(0, Math.min(5, Math.round(candidate.boostPoints)))
-          : 3;
-
-      return {
-        id,
-        name,
-        boostPoints,
-      } satisfies Player;
-    })
-    .filter((player): player is Player => Boolean(player));
-};
-
-const sanitizeCards = (cards: unknown): Card[] => {
-  if (!Array.isArray(cards)) {
-    return [];
-  }
-
-  return cards
-    .map(card => {
-      if (!card || typeof card !== 'object') {
-        return null;
-      }
-
-      const candidate = card as Partial<Card> & {
-        id?: unknown;
-        type?: unknown;
-        text?: unknown;
-        level?: unknown;
-        isBoosted?: unknown;
-        isCustom?: unknown;
-      };
-
-      if (typeof candidate.id !== 'string' || candidate.id.length === 0) {
-        return null;
-      }
-
-      if (candidate.type !== 'truth' && candidate.type !== 'dare') {
-        return null;
-      }
-
-      if (typeof candidate.text !== 'string' || candidate.text.length === 0) {
-        return null;
-      }
-
-      if (!isIntensityLevel(candidate.level)) {
-        return null;
-      }
-
-      return {
-        id: candidate.id,
-        type: candidate.type,
-        text: candidate.text,
-        level: candidate.level,
-        isBoosted: Boolean(candidate.isBoosted),
-        isCustom: Boolean(candidate.isCustom),
-      } satisfies Card;
-    })
-    .filter((card): card is Card => Boolean(card));
-};
-
-const sanitizeGameState = (rawState: unknown): GameState | null => {
-  if (!rawState || typeof rawState !== 'object') {
-    return null;
-  }
-
-  const candidate = rawState as Partial<GameState> & {
-    players?: unknown;
-    availableCards?: unknown;
-    usedCards?: unknown;
-    currentCard?: unknown;
-  };
-
-  const phase: GameState['phase'] = candidate.phase === 'playing' ? 'playing' : 'setup';
-  const mode = isGameMode(candidate.mode) ? candidate.mode : null;
-  const intensity = isIntensityLevel(candidate.intensity) ? candidate.intensity : null;
-  const players = sanitizePlayers(candidate.players);
-  const availableCards = sanitizeCards(candidate.availableCards);
-  const usedCards = sanitizeCards(candidate.usedCards);
-
-  const currentPlayerIndex =
-    typeof candidate.currentPlayerIndex === 'number' &&
-    Number.isInteger(candidate.currentPlayerIndex) &&
-    candidate.currentPlayerIndex >= 0 &&
-    candidate.currentPlayerIndex < players.length
-      ? candidate.currentPlayerIndex
-      : null;
-
-  const currentCardCandidate = candidate.currentCard ? sanitizeCards([candidate.currentCard])[0] : null;
-  const currentCard = currentCardCandidate ?? null;
-
-  if (phase === 'playing' && (!mode || !intensity || players.length < 2)) {
-    return null;
-  }
-
-  return {
-    phase,
-    mode,
-    intensity,
-    players,
-    currentPlayerIndex,
-    availableCards,
-    usedCards,
-    currentCard,
-  } satisfies GameState;
-};
-
-const loadInitialState = (): GameState => {
-  const storage = getSafeLocalStorage();
-
-  if (!storage) {
-    return initialGameState;
   }
 
   try {
-    const saved = storage.getItem(STORAGE_KEY);
-
-    if (!saved) {
-      return initialGameState;
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      return null;
     }
 
-    const parsed = JSON.parse(saved) as unknown;
+    const parsed = JSON.parse(raw) as unknown;
     const sanitized = sanitizeGameState(parsed);
 
-    return sanitized ?? initialGameState;
-  } catch (error) {
-    console.error('Error loading game state:', error);
-    return initialGameState;
+    if (!sanitized) {
+      try {
+        window.localStorage.removeItem(STORAGE_KEY);
+      } catch {
+        // ignore
+      }
+    }
+
+    return sanitized;
+  } catch {
+    try {
+      window.localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+    return null;
   }
-};
+}
+
+const loadInitialState = (): GameState => safeRestore() ?? initialGameState;
 
 export const useGameState = () => {
   const [gameState, setGameState] = useState<GameState>(loadInitialState);
@@ -206,18 +67,15 @@ export const useGameState = () => {
 
   // Save to localStorage whenever state changes
   useEffect(() => {
-    const storage = getSafeLocalStorage();
-
-    if (!storage) {
-
+    if (typeof window === 'undefined' || !('localStorage' in window)) {
       return;
     }
 
     try {
-
-      storage.setItem(STORAGE_KEY, JSON.stringify(gameState));
-    } catch (error) {
-      console.error('Error saving game state:', error);
+      const serialized = JSON.stringify(gameState);
+      window.localStorage.setItem(STORAGE_KEY, serialized);
+    } catch {
+      // ignore
     }
   }, [gameState]);
 
@@ -463,18 +321,14 @@ export const useGameState = () => {
   const resetGame = () => {
     setGameState(initialGameState);
 
-
-    const storage = getSafeLocalStorage();
-
-    if (!storage) {
+    if (typeof window === 'undefined' || !('localStorage' in window)) {
       return;
     }
 
     try {
-      storage.removeItem(STORAGE_KEY);
-    } catch (error) {
-      console.error('Error clearing saved game state:', error);
-
+      window.localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // ignore
     }
   };
 
