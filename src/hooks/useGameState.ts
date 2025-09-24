@@ -25,40 +25,202 @@ const initialGameState: GameState = {
   currentCard: null,
 };
 
-export const useGameState = () => {
-  const [gameState, setGameState] = useState<GameState>(initialGameState);
-  const [isStartingGame, setIsStartingGame] = useState(false);
+const intensityLevels: IntensityLevel[] = ['leve', 'medio', 'pesado', 'extremo'];
+const gameModes: GameMode[] = ['grupo', 'casal'];
 
-  const isBrowser = typeof window !== 'undefined';
 
-  // Load from localStorage on mount
-  useEffect(() => {
-    if (!isBrowser) {
-      return;
+const getSafeLocalStorage = (): Storage | null => {
+  try {
+    if (typeof globalThis === 'undefined') {
+      return null;
     }
 
-    try {
-      const saved = window.localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        setGameState(JSON.parse(saved));
+    if (!('localStorage' in globalThis)) {
+      return null;
+    }
+
+    const storage = (globalThis as typeof globalThis & { localStorage?: Storage }).localStorage ?? null;
+
+    return storage ?? null;
+  } catch (error) {
+    console.error('Error accessing localStorage:', error);
+    return null;
+  }
+};
+
+const isIntensityLevel = (value: unknown): value is IntensityLevel =>
+  typeof value === 'string' && intensityLevels.includes(value as IntensityLevel);
+
+const isGameMode = (value: unknown): value is GameMode =>
+  typeof value === 'string' && gameModes.includes(value as GameMode);
+
+const sanitizePlayers = (players: unknown): Player[] => {
+  if (!Array.isArray(players)) {
+    return [];
+  }
+
+  return players
+    .map((rawPlayer, index) => {
+      if (!rawPlayer || typeof rawPlayer !== 'object') {
+        return null;
       }
-    } catch (error) {
-      console.error('Error loading game state:', error);
+
+      const candidate = rawPlayer as Partial<Player> & { name?: unknown; boostPoints?: unknown; id?: unknown };
+      const name = typeof candidate.name === 'string' ? candidate.name : '';
+      const id = typeof candidate.id === 'string' && candidate.id.trim().length > 0 ? candidate.id : `player-${index}`;
+      const boostPoints =
+        typeof candidate.boostPoints === 'number' && Number.isFinite(candidate.boostPoints)
+          ? Math.max(0, Math.min(5, Math.round(candidate.boostPoints)))
+          : 3;
+
+      return {
+        id,
+        name,
+        boostPoints,
+      } satisfies Player;
+    })
+    .filter((player): player is Player => Boolean(player));
+};
+
+const sanitizeCards = (cards: unknown): Card[] => {
+  if (!Array.isArray(cards)) {
+    return [];
+  }
+
+  return cards
+    .map(card => {
+      if (!card || typeof card !== 'object') {
+        return null;
+      }
+
+      const candidate = card as Partial<Card> & {
+        id?: unknown;
+        type?: unknown;
+        text?: unknown;
+        level?: unknown;
+        isBoosted?: unknown;
+        isCustom?: unknown;
+      };
+
+      if (typeof candidate.id !== 'string' || candidate.id.length === 0) {
+        return null;
+      }
+
+      if (candidate.type !== 'truth' && candidate.type !== 'dare') {
+        return null;
+      }
+
+      if (typeof candidate.text !== 'string' || candidate.text.length === 0) {
+        return null;
+      }
+
+      if (!isIntensityLevel(candidate.level)) {
+        return null;
+      }
+
+      return {
+        id: candidate.id,
+        type: candidate.type,
+        text: candidate.text,
+        level: candidate.level,
+        isBoosted: Boolean(candidate.isBoosted),
+        isCustom: Boolean(candidate.isCustom),
+      } satisfies Card;
+    })
+    .filter((card): card is Card => Boolean(card));
+};
+
+const sanitizeGameState = (rawState: unknown): GameState | null => {
+  if (!rawState || typeof rawState !== 'object') {
+    return null;
+  }
+
+  const candidate = rawState as Partial<GameState> & {
+    players?: unknown;
+    availableCards?: unknown;
+    usedCards?: unknown;
+    currentCard?: unknown;
+  };
+
+  const phase: GameState['phase'] = candidate.phase === 'playing' ? 'playing' : 'setup';
+  const mode = isGameMode(candidate.mode) ? candidate.mode : null;
+  const intensity = isIntensityLevel(candidate.intensity) ? candidate.intensity : null;
+  const players = sanitizePlayers(candidate.players);
+  const availableCards = sanitizeCards(candidate.availableCards);
+  const usedCards = sanitizeCards(candidate.usedCards);
+
+  const currentPlayerIndex =
+    typeof candidate.currentPlayerIndex === 'number' &&
+    Number.isInteger(candidate.currentPlayerIndex) &&
+    candidate.currentPlayerIndex >= 0 &&
+    candidate.currentPlayerIndex < players.length
+      ? candidate.currentPlayerIndex
+      : null;
+
+  const currentCardCandidate = candidate.currentCard ? sanitizeCards([candidate.currentCard])[0] : null;
+  const currentCard = currentCardCandidate ?? null;
+
+  if (phase === 'playing' && (!mode || !intensity || players.length < 2)) {
+    return null;
+  }
+
+  return {
+    phase,
+    mode,
+    intensity,
+    players,
+    currentPlayerIndex,
+    availableCards,
+    usedCards,
+    currentCard,
+  } satisfies GameState;
+};
+
+const loadInitialState = (): GameState => {
+  const storage = getSafeLocalStorage();
+
+  if (!storage) {
+    return initialGameState;
+  }
+
+  try {
+    const saved = storage.getItem(STORAGE_KEY);
+
+    if (!saved) {
+      return initialGameState;
     }
-  }, [isBrowser]);
+
+    const parsed = JSON.parse(saved) as unknown;
+    const sanitized = sanitizeGameState(parsed);
+
+    return sanitized ?? initialGameState;
+  } catch (error) {
+    console.error('Error loading game state:', error);
+    return initialGameState;
+  }
+};
+
+export const useGameState = () => {
+  const [gameState, setGameState] = useState<GameState>(loadInitialState);
+  const [isStartingGame, setIsStartingGame] = useState(false);
 
   // Save to localStorage whenever state changes
   useEffect(() => {
-    if (!isBrowser) {
+    const storage = getSafeLocalStorage();
+
+    if (!storage) {
+
       return;
     }
 
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(gameState));
+
+      storage.setItem(STORAGE_KEY, JSON.stringify(gameState));
     } catch (error) {
       console.error('Error saving game state:', error);
     }
-  }, [gameState, isBrowser]);
+  }, [gameState]);
+
 
   const startGame = async (
     mode: GameMode,
@@ -300,12 +462,19 @@ export const useGameState = () => {
 
   const resetGame = () => {
     setGameState(initialGameState);
-    if (isBrowser) {
-      try {
-        window.localStorage.removeItem(STORAGE_KEY);
-      } catch (error) {
-        console.error('Error clearing saved game state:', error);
-      }
+
+
+    const storage = getSafeLocalStorage();
+
+    if (!storage) {
+      return;
+    }
+
+    try {
+      storage.removeItem(STORAGE_KEY);
+    } catch (error) {
+      console.error('Error clearing saved game state:', error);
+
     }
   };
 
