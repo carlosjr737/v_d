@@ -28,6 +28,7 @@ const initialGameState: GameState = {
 const intensityLevels: IntensityLevel[] = ['leve', 'medio', 'pesado', 'extremo'];
 const gameModes: GameMode[] = ['grupo', 'casal'];
 
+
 const getSafeLocalStorage = (): Storage | null => {
   try {
     if (typeof globalThis === 'undefined') {
@@ -208,15 +209,18 @@ export const useGameState = () => {
     const storage = getSafeLocalStorage();
 
     if (!storage) {
+
       return;
     }
 
     try {
+
       storage.setItem(STORAGE_KEY, JSON.stringify(gameState));
     } catch (error) {
       console.error('Error saving game state:', error);
     }
   }, [gameState]);
+
 
   const startGame = async (
     mode: GameMode,
@@ -279,7 +283,9 @@ export const useGameState = () => {
         mode,
         intensity,
         players: sanitizedPlayers.map(p => ({ ...p, boostPoints: 3 })),
+
         currentPlayerIndex: null,
+
         availableCards: [...cardsToUse],
         usedCards: [],
         currentCard: null,
@@ -457,6 +463,7 @@ export const useGameState = () => {
   const resetGame = () => {
     setGameState(initialGameState);
 
+
     const storage = getSafeLocalStorage();
 
     if (!storage) {
@@ -467,6 +474,7 @@ export const useGameState = () => {
       storage.removeItem(STORAGE_KEY);
     } catch (error) {
       console.error('Error clearing saved game state:', error);
+
     }
   };
 
