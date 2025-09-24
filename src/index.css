@@ -85,4 +85,62 @@
   .animate-spin-slower {
     animation: spinSlower 14s linear infinite;
   }
+
+  @keyframes gradientPulse {
+    0%,
+    100% {
+      transform: scale(1);
+      opacity: 0.45;
+    }
+    50% {
+      transform: scale(1.15);
+      opacity: 0.75;
+    }
+  }
+
+  @keyframes noiseFade {
+    0%,
+    100% {
+      opacity: 0.18;
+    }
+    50% {
+      opacity: 0.32;
+    }
+  }
+
+  @keyframes floatSlow {
+    0%,
+    100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-8px);
+    }
+  }
+
+  @keyframes floatSlower {
+    0%,
+    100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(10px);
+    }
+  }
+
+  .animate-gradient-pulse {
+    animation: gradientPulse 18s ease-in-out infinite;
+  }
+
+  .animate-noise-fade {
+    animation: noiseFade 12s ease-in-out infinite;
+  }
+
+  .animate-float-slow {
+    animation: floatSlow 9s ease-in-out infinite;
+  }
+
+  .animate-float-slower {
+    animation: floatSlower 13s ease-in-out infinite;
+  }
 }
