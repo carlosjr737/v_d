@@ -225,12 +225,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     setTimeout(() => setUi(s => ({ ...s, justFulfilled: false })), 520);
   };
 
-  const handleFulfill = () => {
-    onFulfillCard(); // lógica existente
-    setUi(s => ({ ...s, justFulfilled: true }));
-    setTimeout(() => setUi(s => ({ ...s, justFulfilled: false })), 520);
-  };
-
   const drawHighlightText = finalDrawName ?? highlightedName ?? 'Girando nomes...';
   const drawStatusText = finalDrawName ? 'Próximo jogador definido!' : 'Girando nomes...';
 
