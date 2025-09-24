@@ -8,7 +8,6 @@ import { ChoiceGrid } from '../ui/ChoiceGrid';
 import { CardReveal } from '../ui/CardReveal';
 import { Dock } from '../ui/Dock';
 import { BeatReveal, WarmReveal, SparkOnSuccess } from '../ui/animations/VdAnim';
-import { BeatReveal, WarmReveal, SparkOnSuccess } from '../ui/animations/VdAnim';
 
 
 interface GameScreenProps {
