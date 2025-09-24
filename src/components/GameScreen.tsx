@@ -8,6 +8,7 @@ import { ChoiceGrid } from '../ui/ChoiceGrid';
 import { CardReveal } from '../ui/CardReveal';
 import { Dock } from '../ui/Dock';
 import { BeatReveal, WarmReveal, SparkOnSuccess } from '../ui/animations/VdAnim';
+import { BeatReveal, WarmReveal, SparkOnSuccess } from '../ui/animations/VdAnim';
 
 
 interface GameScreenProps {
@@ -190,6 +191,21 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     }, 650); // duração do batimento
   };
 
+  const handleDraw = (kind: 'truth' | 'dare') => {
+    setUi(s => ({ ...s, sweeping: true }));
+    
+    // Vibração tátil se disponível
+    if ('vibrate' in navigator) {
+      navigator.vibrate([20, 50, 20]);
+    }
+    
+    setTimeout(() => {
+      // Chama a lógica existente
+      handleDrawCard(kind);
+      setUi(s => ({ ...s, sweeping: false }));
+    }, 650); // duração do batimento
+  };
+
   const handleDrawCard = (type: 'truth' | 'dare') => {
     if (!currentPlayer || cardPhase === 'drawing' || cardPhase === 'preparing') {
       return;
@@ -217,6 +233,12 @@ export const GameScreen: React.FC<GameScreenProps> = ({
         setCardPhase('revealed');
       }, 900)
     );
+  };
+
+  const handleFulfill = () => {
+    onFulfillCard(); // lógica existente
+    setUi(s => ({ ...s, justFulfilled: true }));
+    setTimeout(() => setUi(s => ({ ...s, justFulfilled: false })), 520);
   };
 
   const handleFulfill = () => {
@@ -282,13 +304,17 @@ export const GameScreen: React.FC<GameScreenProps> = ({
       <div className="overflow-hidden">
         {cardPhase === 'idle' ? (
           <BeatReveal run={ui.sweeping}>
+          <BeatReveal run={ui.sweeping}>
             <ChoiceGrid
               onTruth={() => handleDraw('truth')}
               onDare={() => handleDraw('dare')}
               disabled={!canDrawCard}
             />
           </BeatReveal>
+          </BeatReveal>
         ) : (
+          <SparkOnSuccess success={ui.justFulfilled}>
+            <WarmReveal show={!!activeCard}>
           <SparkOnSuccess success={ui.justFulfilled}>
             <WarmReveal show={!!activeCard}>
               <CardReveal
@@ -301,6 +327,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({
                 canResolve={canResolveCard}
                 isLoading={isCardLoading}
               />
+            </WarmReveal>
+          </SparkOnSuccess>
             </WarmReveal>
           </SparkOnSuccess>
         )}
