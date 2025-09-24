@@ -22,7 +22,7 @@ export interface GameState {
   mode: GameMode | null;
   intensity: IntensityLevel | null;
   players: Player[];
-  currentPlayerIndex: number;
+  currentPlayerIndex: number | null;
   availableCards: Card[];
   usedCards: Card[];
   currentCard: Card | null;
@@ -32,4 +32,8 @@ export interface StartGameResult {
   success: boolean;
   usedFallback: boolean;
   errorMessage?: string;
+}
+
+export interface StartGameOptions {
+  shouldShuffle?: boolean;
 }
