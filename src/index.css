@@ -55,3 +55,34 @@
     color: var(--color-text);
   }
 }
+
+@layer utilities {
+  @keyframes shufflePulse {
+    0%,
+    100% {
+      opacity: 0.65;
+      transform: scale(0.98);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes spinSlower {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+
+  .animate-shuffle-pulse {
+    animation: shufflePulse 1.8s ease-in-out infinite;
+  }
+
+  .animate-spin-slower {
+    animation: spinSlower 14s linear infinite;
+  }
+}
