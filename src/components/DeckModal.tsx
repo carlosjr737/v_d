@@ -8,6 +8,25 @@ interface DeckModalProps {
   onClose: () => void;
 }
 
+const intensityLabels: Record<IntensityLevel, string> = {
+  leve: 'Leve',
+  medio: 'Médio',
+  pesado: 'Pesado',
+  extremo: 'Extremo',
+};
+
+const intensityColors: Record<IntensityLevel, string> = {
+  leve: 'bg-[var(--level-leve)]',
+  medio: 'bg-[var(--level-medio)]',
+  pesado: 'bg-[var(--level-pesado)]',
+  extremo: 'bg-[var(--level-extremo)]',
+};
+
+const typeStyles = {
+  truth: 'bg-[var(--color-primary-500)] text-[var(--color-bg-900)]',
+  dare: 'bg-[var(--color-secondary-500)] text-[var(--color-bg-900)]',
+} as const;
+
 export const DeckModal: React.FC<DeckModalProps> = ({ cards, intensity, onClose }) => {
   const [filter, setFilter] = useState<'all' | 'truth' | 'dare' | 'boosted' | 'custom'>('all');
 
@@ -26,20 +45,6 @@ export const DeckModal: React.FC<DeckModalProps> = ({ cards, intensity, onClose 
     }
   });
 
-  const intensityLabels = {
-    leve: 'Leve',
-    medio: 'Médio',
-    pesado: 'Pesado',
-    extremo: 'Extremo',
-  };
-
-  const intensityColors = {
-    leve: 'from-green-400 to-green-600',
-    medio: 'from-yellow-400 to-yellow-600', 
-    pesado: 'from-orange-400 to-orange-600',
-    extremo: 'from-red-400 to-red-600',
-  };
-
   const stats = {
     total: cards.length,
     truths: cards.filter(c => c.type === 'truth').length,
@@ -54,49 +59,51 @@ export const DeckModal: React.FC<DeckModalProps> = ({ cards, intensity, onClose 
     { key: 'dare', label: 'Desafios', count: stats.dares },
     { key: 'boosted', label: 'Boostadas', count: stats.boosted },
     { key: 'custom', label: 'Criadas', count: stats.custom },
-  ];
+  ] as const;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl w-full max-w-lg h-[80vh] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b">
-          <div>
-            <h3 className="text-xl font-bold text-gray-800">Baralho da Sessão</h3>
-            <div className="flex items-center gap-2 mt-1">
-              <span className={`px-2 py-1 rounded-full text-white text-xs bg-gradient-to-r ${intensityColors[intensity]}`}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay-veil)] p-4">
+      <div className="flex h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-card border border-border/60 bg-bg-900/85 shadow-heat [--focus-shadow:var(--shadow-heat)] backdrop-blur-2xl">
+        <div className="flex items-center justify-between border-b border-border/50 px-6 py-4">
+          <div className="space-y-1">
+            <span className="text-xs uppercase tracking-[0.4em] text-text-subtle">
+              Baralho ativo
+            </span>
+            <div className="flex items-center gap-3">
+              <h3 className="text-2xl font-display uppercase tracking-[0.18em] text-text">
+                Painel de cartas
+              </h3>
+              <span className={`rounded-pill px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-text ${intensityColors[intensity]}`}>
                 {intensityLabels[intensity]}
               </span>
-              <span className="text-sm text-gray-500">
-                {stats.total} cartas restantes
-              </span>
             </div>
+            <p className="text-xs text-text-subtle">
+              {stats.total} carta{stats.total !== 1 ? 's' : ''} disponível{stats.total !== 1 ? 's' : ''}
+            </p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+            className="grid h-10 w-10 place-items-center rounded-full border border-border/60 text-text-subtle transition hover:text-text"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
-        {/* Filters */}
-        <div className="p-4 border-b bg-gray-50">
-          <div className="flex items-center gap-2 mb-3">
-            <Filter size={16} className="text-gray-600" />
-            <span className="text-sm font-medium text-gray-700">Filtros:</span>
+        <div className="border-b border-border/50 bg-bg-800/70 px-6 py-4">
+          <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-text-subtle">
+            <Filter size={14} /> filtros
           </div>
           <div className="flex flex-wrap gap-2">
-            {filterOptions.map((option) => (
+            {filterOptions.map(option => (
               <button
                 key={option.key}
-                onClick={() => setFilter(option.key as typeof filter)}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-                  filter === option.key
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-white text-gray-600 hover:bg-gray-100'
-                } ${option.count === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                onClick={() => setFilter(option.key)}
                 disabled={option.count === 0}
+                className={`rounded-pill border px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] transition ${
+                  filter === option.key
+                    ? 'border-transparent bg-grad-heat text-text shadow-heat [--focus-shadow:var(--shadow-heat)]'
+                    : 'border-border/60 bg-bg-900/60 text-text-subtle hover:border-border'
+                } ${option.count === 0 ? 'opacity-40' : ''}`}
               >
                 {option.label} ({option.count})
               </button>
@@ -104,50 +111,47 @@ export const DeckModal: React.FC<DeckModalProps> = ({ cards, intensity, onClose 
           </div>
         </div>
 
-        {/* Cards List */}
-        <div className="flex-1 overflow-auto p-4">
+        <div className="flex-1 overflow-auto px-6 py-5">
           {filteredCards.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <div className="text-4xl mb-2">🃏</div>
-              <p>Nenhuma carta encontrada com este filtro.</p>
+            <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-text-subtle">
+              <div className="text-4xl">🃏</div>
+              <p className="max-w-xs text-sm">
+                Nenhuma carta corresponde a este filtro. Tente outra combinação para variar a sessão.
+              </p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {filteredCards.map((card) => (
+            <div className="space-y-4">
+              {filteredCards.map(card => (
                 <div
                   key={card.id}
-                  className={`p-4 border-2 rounded-lg transition-all ${
-                    card.isBoosted 
-                      ? 'border-yellow-400 bg-yellow-50' 
-                      : 'border-gray-200 bg-white hover:border-gray-300'
+                  className={`rounded-card border px-5 py-4 transition ${
+                    card.isBoosted
+                      ? 'border-accent-500/80 bg-accent-500/10 shadow-heat [--focus-shadow:var(--shadow-heat)]'
+                      : 'border-border/60 bg-bg-800/70 hover:border-primary-500/80'
                   }`}
                 >
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className={`p-1 rounded ${
-                        card.type === 'truth' 
-                          ? 'bg-pink-100 text-pink-600' 
-                          : 'bg-blue-100 text-blue-600'
-                      }`}>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em]">
+                      <span className={`inline-flex items-center gap-2 rounded-pill px-3 py-1 ${
+                        card.type === 'truth' ? typeStyles.truth : typeStyles.dare
+                      } shadow-heat [--focus-shadow:var(--shadow-heat)]`}
+                      >
                         {card.type === 'truth' ? <Heart size={14} /> : <Zap size={14} />}
-                      </div>
-                      <span className="text-sm font-medium text-gray-700">
                         {card.type === 'truth' ? 'Verdade' : 'Desafio'}
                       </span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {card.isBoosted && (
-                        <div className="flex items-center gap-1 bg-yellow-400 text-yellow-900 px-2 py-1 rounded-full text-xs font-bold">
-                          <Sparkles size={12} />
-                          BOOST
-                        </div>
-                      )}
                       {card.isCustom && (
-                        <div className="w-2 h-2 bg-green-500 rounded-full" title="Carta personalizada"></div>
+                        <span className="rounded-pill border border-dashed border-border/60 px-3 py-1 text-[0.65rem] uppercase tracking-[0.3em] text-text-subtle">
+                          Criada na sessão
+                        </span>
                       )}
                     </div>
+                    {card.isBoosted && (
+                      <span className="inline-flex items-center gap-2 rounded-pill bg-accent-500 px-3 py-1 text-[0.65rem] uppercase tracking-[0.35em] text-text shadow-heat [--focus-shadow:var(--shadow-heat)]">
+                        <Sparkles size={14} /> boost ativo
+                      </span>
+                    )}
                   </div>
-                  <p className="text-gray-800 text-sm leading-relaxed">
+                  <p className="mt-3 text-sm leading-relaxed text-text">
                     {card.text}
                   </p>
                 </div>
@@ -156,16 +160,13 @@ export const DeckModal: React.FC<DeckModalProps> = ({ cards, intensity, onClose 
           )}
         </div>
 
-        {/* Footer */}
-        <div className="p-4 border-t bg-gray-50">
-          <div className="text-center text-sm text-gray-600">
-            Mostrando {filteredCards.length} de {stats.total} cartas
-            {stats.boosted > 0 && (
-              <div className="mt-1 text-xs text-yellow-700">
-                {stats.boosted} carta{stats.boosted > 1 ? 's' : ''} boostada{stats.boosted > 1 ? 's' : ''} será{stats.boosted > 1 ? 'ão' : ''} priorizada{stats.boosted > 1 ? 's' : ''}
-              </div>
-            )}
-          </div>
+        <div className="border-t border-border/50 bg-bg-800/70 px-6 py-4 text-center text-xs text-text-subtle">
+          Mostrando {filteredCards.length} de {stats.total} carta{stats.total !== 1 ? 's' : ''}
+          {stats.boosted > 0 && (
+            <div className="mt-1 text-[0.7rem] uppercase tracking-[0.3em] text-accent-500">
+              {stats.boosted} boost ativo acelerando a rodada
+            </div>
+          )}
         </div>
       </div>
     </div>

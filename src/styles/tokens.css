@@ -1,0 +1,45 @@
+:root {
+  --color-primary-300: #FF6AA6;
+  --color-primary-500: #FF2E7E;
+  --color-primary-700: #D11663;
+
+  --color-secondary-300: #FF927C;
+  --color-secondary-500: #FF6B4A;
+  --color-secondary-700: #D94C2E;
+
+  --color-accent-500: #C400FF;
+
+  --color-bg-900: #0B0B12;
+  --color-bg-800: #141420;
+  --color-bg-700: #1C1C2C;
+
+  --color-text: #FFFFFF;
+  --color-text-2: #B8B8C9;
+  --color-border: #2A2A3A;
+
+  --level-leve: #FF6AA6;
+  --level-medio: #FF2E7E;
+  --level-pesado: #D94C2E;
+  --level-extremo: #C400FF;
+
+  --grad-heat: linear-gradient(135deg, #FF2E7E 0%, #FF6B4A 50%, #C400FF 100%);
+  --glow-dare: radial-gradient(closest-side, rgba(255, 46, 126, 0.65), transparent 70%);
+  --grad-overlay: radial-gradient(120% 120% at 50% 0%, rgba(196, 0, 255, 0.18) 0%, rgba(255, 107, 74, 0.12) 45%, transparent 85%);
+
+  --font-display: 'Bebas Neue', sans-serif;
+  --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-accent: 'Playfair Display', serif;
+
+  --shadow-heat: 0 6px 24px rgba(255, 46, 126, 0.3);
+  --radius-pill: 28px;
+  --radius-card: 24px;
+  --focus-glow-color: rgba(255, 46, 126, 0.45);
+  --focus-glow: 0 0 0 3px var(--focus-glow-color);
+
+  --overlay-veil: rgba(11, 11, 18, 0.85);
+
+  --button-height: 56px;
+  --card-padding: 1.75rem;
+
+  --texture-noise: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='160' height='160' filter='url(%23n)' opacity='0.08'/></svg>");
+}

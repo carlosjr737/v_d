@@ -9,6 +9,31 @@ interface CreateCardModalProps {
   onClose: () => void;
 }
 
+const intensityLabels: Record<IntensityLevel, string> = {
+  leve: 'Leve',
+  medio: 'Médio',
+  pesado: 'Pesado',
+  extremo: 'Extremo',
+};
+
+const intensityColors: Record<IntensityLevel, string> = {
+  leve: 'bg-[var(--level-leve)]',
+  medio: 'bg-[var(--level-medio)]',
+  pesado: 'bg-[var(--level-pesado)]',
+  extremo: 'bg-[var(--level-extremo)]',
+};
+
+const cardTypeAccent = {
+  truth: {
+    base: 'bg-[var(--color-primary-500)] text-[var(--color-bg-900)]',
+    icon: 'bg-[var(--color-primary-500)] text-[var(--color-bg-900)]',
+  },
+  dare: {
+    base: 'bg-[var(--color-secondary-500)] text-[var(--color-bg-900)]',
+    icon: 'bg-[var(--color-secondary-500)] text-[var(--color-bg-900)]',
+  },
+} as const;
+
 export const CreateCardModal: React.FC<CreateCardModalProps> = ({
   currentPlayer,
   intensity,
@@ -23,7 +48,7 @@ export const CreateCardModal: React.FC<CreateCardModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!cardText.trim()) {
       alert('Digite o texto da carta!');
       return;
@@ -35,7 +60,7 @@ export const CreateCardModal: React.FC<CreateCardModalProps> = ({
     }
 
     const success = onAddCard(cardType, cardText.trim(), applyBoost);
-    
+
     if (success) {
       onClose();
     } else {
@@ -43,147 +68,150 @@ export const CreateCardModal: React.FC<CreateCardModalProps> = ({
     }
   };
 
-  const intensityLabels = {
-    leve: 'Leve',
-    medio: 'Médio',
-    pesado: 'Pesado', 
-    extremo: 'Extremo',
-  };
-
-  const intensityColors = {
-    leve: 'from-green-400 to-green-600',
-    medio: 'from-yellow-400 to-yellow-600',
-    pesado: 'from-orange-400 to-orange-600',
-    extremo: 'from-red-400 to-red-600',
-  };
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl w-full max-w-md max-h-[90vh] overflow-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b">
-          <h3 className="text-xl font-bold text-gray-800">Criar Nova Carta</h3>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay-veil)] p-4">
+      <div className="w-full max-w-lg overflow-hidden rounded-card border border-border/60 bg-bg-900/85 shadow-heat [--focus-shadow:var(--shadow-heat)] backdrop-blur-2xl">
+        <div className="flex items-center justify-between border-b border-border/50 px-6 py-4">
+          <div className="space-y-1">
+            <span className="text-xs uppercase tracking-[0.4em] text-text-subtle">
+              Criar carta personalizada
+            </span>
+            <h3 className="text-2xl font-display uppercase tracking-[0.18em] text-text">
+              Inspiração imediata
+            </h3>
+          </div>
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+            className="grid h-10 w-10 place-items-center rounded-full border border-border/60 text-text-subtle transition hover:text-text"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Player Info */}
-          <div className="bg-gray-50 rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Criando como:</span>
-              <div className="flex items-center gap-2">
-                <span className="font-medium text-gray-800">{currentPlayer.name}</span>
-                <span className={`px-2 py-1 rounded-full text-white text-xs bg-gradient-to-r ${intensityColors[intensity]}`}>
+        <form onSubmit={handleSubmit} className="space-y-6 px-6 py-6">
+          <div className="rounded-card border border-border/60 bg-bg-800/70 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-text-subtle">
+              <span>Jogador responsável</span>
+              <div className="flex items-center gap-3">
+                <span className="rounded-pill border border-border/50 bg-bg-900/60 px-3 py-1 text-text">
+                  {currentPlayer.name}
+                </span>
+                <span className={`rounded-pill px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-text ${intensityColors[intensity]}`}>
                   {intensityLabels[intensity]}
                 </span>
               </div>
             </div>
-            <div className="mt-2 text-sm text-gray-500">
+            <p className="mt-3 text-xs uppercase tracking-[0.3em] text-text-subtle">
               Pontos de boost: {currentPlayer.boostPoints}/5
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <span className="text-xs font-semibold uppercase tracking-[0.3em] text-text-subtle">
+              Tipo da carta
+            </span>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {(['truth', 'dare'] as const).map(type => {
+                const isActive = cardType === type;
+                const Icon = type === 'truth' ? Heart : Zap;
+
+                return (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => setCardType(type)}
+                    className={`flex h-20 items-center justify-between rounded-card border px-5 transition focus-visible:outline-none focus-visible:ring-0 ${
+                      isActive
+                        ? `${cardTypeAccent[type].base} border-transparent shadow-heat [--focus-shadow:var(--shadow-heat)]`
+                        : 'border-border/60 bg-bg-900/60 text-text hover:border-border'
+                    }`}
+                  >
+                    <span className="flex items-center gap-3 text-left">
+                      <span
+                        className={`grid h-10 w-10 place-items-center rounded-full shadow-heat [--focus-shadow:var(--shadow-heat)] ${
+                          isActive
+                            ? cardTypeAccent[type].icon
+                            : 'bg-bg-800 text-text'
+                        }`}
+                      >
+                        <Icon size={18} />
+                      </span>
+                      <span className="text-sm font-semibold uppercase tracking-[0.2em]">
+                        {type === 'truth' ? 'Verdade' : 'Desafio'}
+                      </span>
+                    </span>
+                    <span className="text-[0.65rem] uppercase tracking-[0.3em] text-text-subtle">
+                      {type === 'truth' ? 'Confissão' : 'Coragem'}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {/* Card Type */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
-              Tipo da Carta
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setCardType('truth')}
-                className={`p-4 rounded-lg border-2 transition-all flex items-center justify-center gap-2 ${
-                  cardType === 'truth'
-                    ? 'border-pink-500 bg-pink-50 text-pink-700'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <Heart size={18} />
-                <span className="font-medium">Verdade</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setCardType('dare')}
-                className={`p-4 rounded-lg border-2 transition-all flex items-center justify-center gap-2 ${
-                  cardType === 'dare'
-                    ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <Zap size={18} />
-                <span className="font-medium">Desafio</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Card Text */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Texto da Carta *
+          <div className="space-y-2">
+            <label className="text-xs font-semibold uppercase tracking-[0.3em] text-text-subtle" htmlFor="card-text">
+              Texto da carta
             </label>
             <textarea
+              id="card-text"
               value={cardText}
-              onChange={(e) => setCardText(e.target.value)}
-              placeholder={`Digite aqui sua ${cardType === 'truth' ? 'pergunta' : 'ação de desafio'}...`}
+              onChange={e => setCardText(e.target.value)}
+              placeholder={`Digite aqui sua ${cardType === 'truth' ? 'pergunta reveladora' : 'provocação audaciosa'}...`}
               rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              className="w-full rounded-card border border-border/60 bg-bg-900/60 px-4 py-3 text-base text-text placeholder:text-text-subtle focus-visible:outline-none focus-visible:ring-0"
+              maxLength={500}
               required
             />
-            <div className="mt-1 text-xs text-gray-500">
-              {cardText.length}/500 caracteres
+            <div className="flex items-center justify-between text-xs text-text-subtle">
+              <span>Limite: 500 caracteres</span>
+              <span>{cardText.length}/500</span>
             </div>
           </div>
 
-          {/* Boost Option */}
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="rounded-card border border-dashed border-border/60 bg-bg-800/70 p-4">
             <label className="flex items-start gap-3">
               <input
                 type="checkbox"
                 checked={applyBoost}
-                onChange={(e) => setApplyBoost(e.target.checked)}
+                onChange={e => setApplyBoost(e.target.checked)}
                 disabled={!canApplyBoost}
-                className="mt-1 h-4 w-4 text-yellow-600 rounded focus:ring-yellow-500"
+                className="mt-1 h-4 w-4 accent-accent-500"
               />
-              <div className="flex-1">
+              <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Sparkles size={16} className="text-yellow-600" />
-                  <span className="font-medium text-gray-800">
-                    Aplicar Boost (2 pontos)
+                  <Sparkles size={18} className="text-accent-500" />
+                  <span className="text-sm font-semibold uppercase tracking-[0.2em] text-text">
+                    Aplicar boost (2 pontos)
                   </span>
                 </div>
-                <p className="text-sm text-gray-600 mt-1">
-                  Prioriza esta carta na próxima rodada e evita que seja descartada após o uso.
+                <p className="text-sm text-text-subtle">
+                  Garante prioridade para esta carta na próxima rodada e impede o descarte automático após o uso.
                 </p>
                 {!canApplyBoost && (
-                  <p className="text-sm text-red-600 mt-1">
-                    Você precisa de pelo menos 2 pontos de boost.
+                  <p className="text-sm text-secondary-300">
+                    Você precisa de pelo menos 2 pontos para usar este recurso.
                   </p>
                 )}
               </div>
             </label>
           </div>
 
-          {/* Actions */}
-          <div className="flex gap-3 pt-4">
+          <div className="grid gap-3 sm:grid-cols-2">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-3 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-all font-medium"
+              className="flex h-12 items-center justify-center rounded-pill border border-border px-4 text-sm font-semibold uppercase tracking-[0.2em] text-text transition hover:border-primary-500 hover:text-primary-300"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={!cardText.trim()}
-              className="flex-1 py-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg hover:from-purple-600 hover:to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium flex items-center justify-center gap-2"
+              className="flex h-12 items-center justify-center gap-2 rounded-pill bg-grad-heat px-4 text-sm font-semibold uppercase tracking-[0.2em] text-text shadow-heat [--focus-shadow:var(--shadow-heat)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <Plus size={18} />
-              Criar Carta
+              Criar carta
             </button>
           </div>
         </form>

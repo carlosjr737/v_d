@@ -15,19 +15,23 @@ function App() {
   } = useGameState();
 
   return (
-    <div className="min-h-screen">
-      {gameState.phase === 'setup' ? (
-        <SetupScreen onStartGame={startGame} />
-      ) : (
-        <GameScreen
-          gameState={gameState}
-          onDrawCard={drawCard}
-          onFulfillCard={fulfillCard}
-          onPassCard={passCard}
-          onAddCustomCard={addCustomCard}
-          onResetGame={resetGame}
-        />
-      )}
+    <div className="min-h-screen bg-bg-900 text-text relative overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 bg-grad-heat opacity-[0.18] blur-3xl" aria-hidden="true" />
+      <div className="pointer-events-none absolute inset-0 bg-[var(--texture-noise)] opacity-40 mix-blend-soft-light" aria-hidden="true" />
+      <div className="relative z-10 flex min-h-screen flex-col">
+        {gameState.phase === 'setup' ? (
+          <SetupScreen onStartGame={startGame} />
+        ) : (
+          <GameScreen
+            gameState={gameState}
+            onDrawCard={drawCard}
+            onFulfillCard={fulfillCard}
+            onPassCard={passCard}
+            onAddCustomCard={addCustomCard}
+            onResetGame={resetGame}
+          />
+        )}
+      </div>
     </div>
   );
 }

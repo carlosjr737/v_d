@@ -1,3 +1,57 @@
+@import './styles/tokens.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html {
+    font-family: var(--font-body);
+    color: var(--color-text);
+    background-color: var(--color-bg-900);
+  }
+
+  body {
+    min-height: 100vh;
+    margin: 0;
+    background-color: var(--color-bg-900);
+    background-image: var(--grad-overlay), var(--texture-noise);
+    background-attachment: fixed;
+    color: var(--color-text);
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
+    letter-spacing: 0.02em;
+  }
+
+  strong,
+  em,
+  mark {
+    font-family: var(--font-accent);
+    font-style: italic;
+  }
+
+  *,
+  *::before,
+  *::after {
+    --focus-shadow: 0 0 #0000;
+  }
+
+  *:focus-visible {
+    outline: 0;
+    box-shadow: var(--focus-glow), var(--focus-shadow, 0 0 #0000);
+  }
+
+  ::selection {
+    background: rgba(255, 46, 126, 0.35);
+    color: var(--color-text);
+  }
+}
