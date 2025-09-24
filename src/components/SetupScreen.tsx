@@ -1,12 +1,19 @@
 import React, { useState } from 'react';
-import { GameMode, IntensityLevel, Player, StartGameResult } from '../types/game';
+import {
+  GameMode,
+  IntensityLevel,
+  Player,
+  StartGameResult,
+  StartGameOptions,
+} from '../types/game';
 import { Users, UserPlus, X, ArrowUp, ArrowDown, Play, Loader2 } from 'lucide-react';
 
 interface SetupScreenProps {
   onStartGame: (
     mode: GameMode,
     intensity: IntensityLevel,
-    players: Player[]
+    players: Player[],
+    options?: StartGameOptions
   ) => Promise<StartGameResult>;
   isStarting: boolean;
 }
@@ -87,7 +94,9 @@ export const SetupScreen: React.FC<SetupScreenProps> = ({ onStartGame, isStartin
     }));
 
     try {
-      const result = await onStartGame(mode!, intensity!, sanitizedPlayers);
+      const result = await onStartGame(mode!, intensity!, sanitizedPlayers, {
+        shouldShuffle: false,
+      });
 
       if (result.errorMessage) {
         alert(result.errorMessage);
@@ -186,7 +195,7 @@ export const SetupScreen: React.FC<SetupScreenProps> = ({ onStartGame, isStartin
                   Jogadores ({players.length} {mode === 'casal' ? '- máx 2' : '- mín 3'})
                 </h3>
                 <p className="text-xs text-text-subtle">
-                  Organize a ordem para aumentar a tensão da rodada.
+                  A cada rodada um nome será sorteado automaticamente.
                 </p>
               </div>
 
@@ -264,7 +273,11 @@ export const SetupScreen: React.FC<SetupScreenProps> = ({ onStartGame, isStartin
                 aria-busy={isStarting}
                 className="flex h-[var(--button-height)] w-full items-center justify-center gap-3 rounded-pill bg-grad-heat px-6 text-lg font-semibold uppercase tracking-[0.24em] text-text shadow-heat [--focus-shadow:var(--shadow-heat)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {isStarting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Play size={22} />}
+                {isStarting ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Play size={22} />
+                )}
                 {isStarting ? 'Sincronizando baralho...' : 'Iniciar sessão'}
               </button>
               {!canStart && (

@@ -6,9 +6,11 @@ import {
   IntensityLevel,
   GameMode,
   StartGameResult,
+  StartGameOptions,
 } from '../types/game';
 import { seedCards } from '../data/seedCards';
 import { fetchCardsByIntensity, createRemoteCard } from '../services/cardService';
+import { shuffleArray } from '../utils/shuffle';
 
 const STORAGE_KEY = 'verdade-ou-desafio-game';
 
@@ -17,39 +19,220 @@ const initialGameState: GameState = {
   mode: null,
   intensity: null,
   players: [],
-  currentPlayerIndex: 0,
+  currentPlayerIndex: null,
   availableCards: [],
   usedCards: [],
   currentCard: null,
 };
 
-export const useGameState = () => {
-  const [gameState, setGameState] = useState<GameState>(initialGameState);
-  const [isStartingGame, setIsStartingGame] = useState(false);
+const intensityLevels: IntensityLevel[] = ['leve', 'medio', 'pesado', 'extremo'];
+const gameModes: GameMode[] = ['grupo', 'casal'];
 
-  // Load from localStorage on mount
-  useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        setGameState(JSON.parse(saved));
-      } catch (error) {
-        console.error('Error loading game state:', error);
-      }
+const getSafeLocalStorage = (): Storage | null => {
+  try {
+    if (typeof globalThis === 'undefined') {
+      return null;
     }
-  }, []);
+
+    if (!('localStorage' in globalThis)) {
+      return null;
+    }
+
+    const storage = (globalThis as typeof globalThis & { localStorage?: Storage }).localStorage ?? null;
+
+    return storage ?? null;
+  } catch (error) {
+    console.error('Error accessing localStorage:', error);
+    return null;
+  }
+};
+
+const isIntensityLevel = (value: unknown): value is IntensityLevel =>
+  typeof value === 'string' && intensityLevels.includes(value as IntensityLevel);
+
+const isGameMode = (value: unknown): value is GameMode =>
+  typeof value === 'string' && gameModes.includes(value as GameMode);
+
+const sanitizePlayers = (players: unknown): Player[] => {
+  if (!Array.isArray(players)) {
+    return [];
+  }
+
+  return players
+    .map((rawPlayer, index) => {
+      if (!rawPlayer || typeof rawPlayer !== 'object') {
+        return null;
+      }
+
+      const candidate = rawPlayer as Partial<Player> & { name?: unknown; boostPoints?: unknown; id?: unknown };
+      const name = typeof candidate.name === 'string' ? candidate.name : '';
+      const id = typeof candidate.id === 'string' && candidate.id.trim().length > 0 ? candidate.id : `player-${index}`;
+      const boostPoints =
+        typeof candidate.boostPoints === 'number' && Number.isFinite(candidate.boostPoints)
+          ? Math.max(0, Math.min(5, Math.round(candidate.boostPoints)))
+          : 3;
+
+      return {
+        id,
+        name,
+        boostPoints,
+      } satisfies Player;
+    })
+    .filter((player): player is Player => Boolean(player));
+};
+
+const sanitizeCards = (cards: unknown): Card[] => {
+  if (!Array.isArray(cards)) {
+    return [];
+  }
+
+  return cards
+    .map(card => {
+      if (!card || typeof card !== 'object') {
+        return null;
+      }
+
+      const candidate = card as Partial<Card> & {
+        id?: unknown;
+        type?: unknown;
+        text?: unknown;
+        level?: unknown;
+        isBoosted?: unknown;
+        isCustom?: unknown;
+      };
+
+      if (typeof candidate.id !== 'string' || candidate.id.length === 0) {
+        return null;
+      }
+
+      if (candidate.type !== 'truth' && candidate.type !== 'dare') {
+        return null;
+      }
+
+      if (typeof candidate.text !== 'string' || candidate.text.length === 0) {
+        return null;
+      }
+
+      if (!isIntensityLevel(candidate.level)) {
+        return null;
+      }
+
+      return {
+        id: candidate.id,
+        type: candidate.type,
+        text: candidate.text,
+        level: candidate.level,
+        isBoosted: Boolean(candidate.isBoosted),
+        isCustom: Boolean(candidate.isCustom),
+      } satisfies Card;
+    })
+    .filter((card): card is Card => Boolean(card));
+};
+
+const sanitizeGameState = (rawState: unknown): GameState | null => {
+  if (!rawState || typeof rawState !== 'object') {
+    return null;
+  }
+
+  const candidate = rawState as Partial<GameState> & {
+    players?: unknown;
+    availableCards?: unknown;
+    usedCards?: unknown;
+    currentCard?: unknown;
+  };
+
+  const phase: GameState['phase'] = candidate.phase === 'playing' ? 'playing' : 'setup';
+  const mode = isGameMode(candidate.mode) ? candidate.mode : null;
+  const intensity = isIntensityLevel(candidate.intensity) ? candidate.intensity : null;
+  const players = sanitizePlayers(candidate.players);
+  const availableCards = sanitizeCards(candidate.availableCards);
+  const usedCards = sanitizeCards(candidate.usedCards);
+
+  const currentPlayerIndex =
+    typeof candidate.currentPlayerIndex === 'number' &&
+    Number.isInteger(candidate.currentPlayerIndex) &&
+    candidate.currentPlayerIndex >= 0 &&
+    candidate.currentPlayerIndex < players.length
+      ? candidate.currentPlayerIndex
+      : null;
+
+  const currentCardCandidate = candidate.currentCard ? sanitizeCards([candidate.currentCard])[0] : null;
+  const currentCard = currentCardCandidate ?? null;
+
+  if (phase === 'playing' && (!mode || !intensity || players.length < 2)) {
+    return null;
+  }
+
+  return {
+    phase,
+    mode,
+    intensity,
+    players,
+    currentPlayerIndex,
+    availableCards,
+    usedCards,
+    currentCard,
+  } satisfies GameState;
+};
+
+const loadInitialState = (): GameState => {
+  const storage = getSafeLocalStorage();
+
+  if (!storage) {
+    return initialGameState;
+  }
+
+  try {
+    const saved = storage.getItem(STORAGE_KEY);
+
+    if (!saved) {
+      return initialGameState;
+    }
+
+    const parsed = JSON.parse(saved) as unknown;
+    const sanitized = sanitizeGameState(parsed);
+
+    return sanitized ?? initialGameState;
+  } catch (error) {
+    console.error('Error loading game state:', error);
+    return initialGameState;
+  }
+};
+
+export const useGameState = () => {
+  const [gameState, setGameState] = useState<GameState>(loadInitialState);
+  const [isStartingGame, setIsStartingGame] = useState(false);
 
   // Save to localStorage whenever state changes
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(gameState));
+    const storage = getSafeLocalStorage();
+
+    if (!storage) {
+      return;
+    }
+
+    try {
+      storage.setItem(STORAGE_KEY, JSON.stringify(gameState));
+    } catch (error) {
+      console.error('Error saving game state:', error);
+    }
   }, [gameState]);
 
   const startGame = async (
     mode: GameMode,
     intensity: IntensityLevel,
-    players: Player[]
+    players: Player[],
+    options?: StartGameOptions
   ): Promise<StartGameResult> => {
     setIsStartingGame(true);
+
+    const shouldShuffle = options?.shouldShuffle ?? true;
+    const preparedPlayers = shouldShuffle ? shuffleArray(players) : players;
+
+    const sanitizedPlayers = preparedPlayers.map(player => ({
+      ...player,
+      name: player.name.trim(),
+    }));
 
     let usedFallback = false;
     let success = true;
@@ -95,8 +278,8 @@ export const useGameState = () => {
         phase: 'playing',
         mode,
         intensity,
-        players: players.map(p => ({ ...p, boostPoints: 3 })),
-        currentPlayerIndex: 0,
+        players: sanitizedPlayers.map(p => ({ ...p, boostPoints: 3 })),
+        currentPlayerIndex: null,
         availableCards: [...cardsToUse],
         usedCards: [],
         currentCard: null,
@@ -113,6 +296,10 @@ export const useGameState = () => {
   };
 
   const drawCard = (type: 'truth' | 'dare') => {
+    if (gameState.currentPlayerIndex === null) {
+      return null;
+    }
+
     const { availableCards, intensity } = gameState;
     
     // First, check for boosted cards of the chosen type
@@ -150,22 +337,28 @@ export const useGameState = () => {
 
   const fulfillCard = () => {
     if (!gameState.currentCard) return;
-    
+
     setGameState(prev => {
-      const updatedCards = prev.availableCards.filter(card => card.id !== prev.currentCard!.id);
-      const updatedUsedCards = [...prev.usedCards];
-      
-      // Only add to used cards if it wasn't boosted (boosted cards get discarded)
-      if (!prev.currentCard!.isBoosted) {
-        updatedUsedCards.push(prev.currentCard!);
+      if (!prev.currentCard) {
+        return prev;
       }
 
-      // Award boost point (max 5)
-      const updatedPlayers = prev.players.map((player, index) => 
-        index === prev.currentPlayerIndex 
-          ? { ...player, boostPoints: Math.min(player.boostPoints + 1, 5) }
-          : player
-      );
+      const updatedCards = prev.availableCards.filter(card => card.id !== prev.currentCard.id);
+      const updatedUsedCards = [...prev.usedCards];
+
+      if (!prev.currentCard.isBoosted) {
+        updatedUsedCards.push(prev.currentCard);
+      }
+
+      const shouldRewardBoost = prev.currentPlayerIndex !== null;
+
+      const updatedPlayers = shouldRewardBoost
+        ? prev.players.map((player, index) =>
+            index === prev.currentPlayerIndex
+              ? { ...player, boostPoints: Math.min(player.boostPoints + 1, 5) }
+              : player
+          )
+        : prev.players;
 
       return {
         ...prev,
@@ -173,7 +366,7 @@ export const useGameState = () => {
         usedCards: updatedUsedCards,
         players: updatedPlayers,
         currentCard: null,
-        currentPlayerIndex: (prev.currentPlayerIndex + 1) % prev.players.length,
+        currentPlayerIndex: null,
       };
     });
   };
@@ -182,8 +375,28 @@ export const useGameState = () => {
     setGameState(prev => ({
       ...prev,
       currentCard: null,
-      currentPlayerIndex: (prev.currentPlayerIndex + 1) % prev.players.length,
+      currentPlayerIndex: null,
     }));
+  };
+
+  const drawNextPlayer = () => {
+    let selectedPlayer: Player | null = null;
+
+    setGameState(prev => {
+      if (prev.players.length === 0) {
+        return prev;
+      }
+
+      const randomIndex = Math.floor(Math.random() * prev.players.length);
+      selectedPlayer = prev.players[randomIndex];
+
+      return {
+        ...prev,
+        currentPlayerIndex: randomIndex,
+      };
+    });
+
+    return selectedPlayer;
   };
 
   const addCustomCard = async (
@@ -194,9 +407,10 @@ export const useGameState = () => {
     if (!gameState.intensity) return false;
 
     const intensity = gameState.intensity;
-    const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+    const currentIndex = gameState.currentPlayerIndex;
+    const currentPlayer = currentIndex !== null ? gameState.players[currentIndex] : null;
 
-    if (applyBoost && currentPlayer.boostPoints < 2) {
+    if (applyBoost && (!currentPlayer || currentPlayer.boostPoints < 2)) {
       return false; // Not enough points
     }
 
@@ -218,7 +432,7 @@ export const useGameState = () => {
       };
 
       setGameState(prev => {
-        const updatedPlayers = applyBoost
+        const updatedPlayers = applyBoost && prev.currentPlayerIndex !== null
           ? prev.players.map((player, index) =>
               index === prev.currentPlayerIndex
                 ? { ...player, boostPoints: player.boostPoints - 2 }
@@ -242,7 +456,18 @@ export const useGameState = () => {
 
   const resetGame = () => {
     setGameState(initialGameState);
-    localStorage.removeItem(STORAGE_KEY);
+
+    const storage = getSafeLocalStorage();
+
+    if (!storage) {
+      return;
+    }
+
+    try {
+      storage.removeItem(STORAGE_KEY);
+    } catch (error) {
+      console.error('Error clearing saved game state:', error);
+    }
   };
 
   return {
@@ -251,6 +476,7 @@ export const useGameState = () => {
     drawCard,
     fulfillCard,
     passCard,
+    drawNextPlayer,
     addCustomCard,
     resetGame,
     isStartingGame,
