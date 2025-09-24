@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Heart, Loader2, Sparkles, Zap } from 'lucide-react';
 import { Card, IntensityLevel } from '../types/game';
@@ -11,9 +12,11 @@ const levelAccentBorders: Record<IntensityLevel, string> = {
 };
 
 const cardTypeLabels = {
+
   truth: 'Verdade',
   dare: 'Desafio',
 } as const;
+
 
 const cardTypeBadges = {
   truth:
@@ -133,3 +136,4 @@ export const GameCard: React.FC<GameCardProps> = ({ card, intensity, status }) =
 };
 
 export default GameCard;
+

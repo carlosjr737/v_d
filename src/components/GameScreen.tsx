@@ -12,8 +12,10 @@ import {
 } from 'lucide-react';
 import { CreateCardModal } from './CreateCardModal';
 import { DeckModal } from './DeckModal';
+
 import { GameTable } from './GameTable';
 import { cn } from '../utils/cn';
+
 
 interface GameScreenProps {
   gameState: GameState;
@@ -302,6 +304,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
               </div>
             </div>
 
+
             <div className="flex items-stretch gap-4 overflow-x-auto pb-2">
               {hasPlayers ? (
                 gameState.players.map((player, index) => {
@@ -374,6 +377,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
                 <div className="flex min-w-[220px] flex-col items-center justify-center gap-2 rounded-[28px] border border-dashed border-border/50 bg-bg-900/40 px-6 py-8 text-center text-xs uppercase tracking-[0.35em] text-text-subtle">
                   Nenhum jogador inscrito
                   <span className="text-[0.6rem] text-text-subtle/70">Adicione participantes para iniciar</span>
+
                 </div>
               )}
             </div>
