@@ -107,7 +107,9 @@ export const useGameState = () => {
         mode,
         intensity,
         players: sanitizedPlayers.map(p => ({ ...p, boostPoints: 3 })),
+
         currentPlayerIndex: null,
+
         availableCards: [...cardsToUse],
         usedCards: [],
         currentCard: null,
