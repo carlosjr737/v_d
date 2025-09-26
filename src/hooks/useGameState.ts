@@ -201,6 +201,34 @@ export const useGameState = () => {
     return selectedCard;
   };
 
+  const addCardToDeck = (card: Card) => {
+    setGameState(prev => {
+      const alreadyExists = prev.availableCards.some(existing => existing.id === card.id);
+      if (alreadyExists) {
+        return prev;
+      }
+      return {
+        ...prev,
+        availableCards: [...prev.availableCards, card],
+      };
+    });
+  };
+
+  const removeCardFromDeck = (cardId: string) => {
+    setGameState(prev => ({
+      ...prev,
+      availableCards: prev.availableCards.filter(card => card.id !== cardId),
+    }));
+  };
+
+  const forceCard = (card: Card) => {
+    setGameState(prev => ({
+      ...prev,
+      currentCard: card,
+    }));
+    return card;
+  };
+
   const fulfillCard = () => {
     if (!gameState.currentCard) return;
 
@@ -338,10 +366,13 @@ export const useGameState = () => {
     gameState,
     startGame,
     drawCard,
+    forceCard,
     fulfillCard,
     passCard,
     drawNextPlayer,
     addCustomCard,
+    addCardToDeck,
+    removeCardFromDeck,
     resetGame,
     isStartingGame,
   };
