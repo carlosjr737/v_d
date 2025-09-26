@@ -1,3 +1,7 @@
+
+import { useCallback, useState } from 'react';
+import { Toast } from '@/components/Toast';
+
 import type { GameState } from '@/models/game';
 import type { PlayerId } from '@/models/players';
 
@@ -8,37 +12,57 @@ export type ChooseNextCardButtonProps = {
   toast?: { error?: (message: string) => void; info?: (message: string) => void };
 };
 
-function showAlert(message: string) {
-  if (typeof window !== 'undefined' && window.alert) {
-    window.alert(message);
-    return;
-  }
-  console.warn(message);
-}
+
+type LocalToastState = { open: boolean; message: string; variant: 'error' | 'info' };
 
 export function ChooseNextCardButton({ currentPlayerId, state, onOpenModal, toast }: ChooseNextCardButtonProps) {
+  const [localToast, setLocalToast] = useState<LocalToastState>({
+    open: false,
+    message: '',
+    variant: 'info',
+  });
+
+
   const player = currentPlayerId ? state.players[currentPlayerId] : undefined;
   const points = player?.points ?? 0;
   const cooldown = currentPlayerId ? state.cooldowns[currentPlayerId]?.choose_next_card ?? 0 : 0;
   const hasEnoughPoints = points >= 5;
-  const onCooldown = cooldown > 0;
-  const canUse = Boolean(player) && hasEnoughPoints && !onCooldown;
+
+  const canUse = Boolean(player) && hasEnoughPoints && cooldown === 0;
+
+  const openToast = useCallback(
+    (variant: 'error' | 'info', message: string) => {
+      if (variant === 'error' && toast?.error) {
+        toast.error(message);
+        return;
+      }
+
+      if (variant === 'info' && toast?.info) {
+        toast.info(message);
+        return;
+      }
+
+      setLocalToast({ open: true, message, variant });
+    },
+    [toast]
+  );
 
   const handleClick = () => {
     if (!player) {
-      toast?.info?.('Aguardando jogador para usar a ação especial.');
+      openToast('info', 'Aguardando jogador para usar a ação especial.');
+
       return;
     }
 
     if (!hasEnoughPoints) {
-      const message = 'Você precisa de 5 pontos para executar esta ação especial.';
-      toast?.error?.(message) ?? showAlert(message);
+
+      openToast('error', 'Você precisa de 5 pontos para executar esta ação especial.');
       return;
     }
 
-    if (onCooldown) {
-      const message = 'Ação em recarga. Aguarde o fim do cooldown.';
-      toast?.info?.(message) ?? showAlert(message);
+    if (cooldown > 0) {
+      openToast('info', 'Ação em recarga. Aguarde o fim do cooldown.');
+
       return;
     }
 
@@ -47,22 +71,37 @@ export function ChooseNextCardButton({ currentPlayerId, state, onOpenModal, toas
 
   const hint = !player
     ? 'Aguardando jogador'
-    : onCooldown
+
+    : cooldown > 0
+
     ? `Cooldown: ${cooldown}`
     : `${points} pts disponíveis`;
 
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      aria-disabled={!canUse}
-      className={`flex h-full w-full flex-col items-center justify-center gap-1 rounded-card bg-bg-900/60 text-white transition-all active:scale-95 ${
-        canUse ? 'hover:scale-105 hover:bg-accent-500/20' : 'cursor-not-allowed opacity-50'
-      }`}
-    >
-      <span className="text-xl">🎯</span>
-      <span className="text-[11px] font-semibold leading-tight text-center">Escolha do Destino</span>
-      <span className="text-[11px] text-white/60">{hint}</span>
-    </button>
+
+    <>
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={!canUse}
+        aria-disabled={!canUse}
+        className={`flex h-full w-full flex-col items-center justify-center gap-1 rounded-3xl border border-white/10 text-white transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 ${
+          canUse
+            ? 'bg-gradient-to-r from-pink-500 to-orange-400 text-white shadow-md hover:scale-[1.02] hover:shadow-lg active:scale-95'
+            : 'cursor-not-allowed bg-bg-900/60 text-white/60 opacity-70'
+        }`}
+      >
+        <span className="text-xl">🎯</span>
+        <span className="text-[11px] font-semibold leading-tight text-center">Escolha do Destino</span>
+        <span className="text-[11px] text-white/70">{hint}</span>
+      </button>
+      <Toast
+        open={localToast.open}
+        message={localToast.message}
+        variant={localToast.variant}
+        onClose={() => setLocalToast(prev => ({ ...prev, open: false }))}
+      />
+    </>
+
   );
 }

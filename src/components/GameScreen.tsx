@@ -10,6 +10,7 @@ import { ChoiceGrid } from '../ui/ChoiceGrid';
 import { CardReveal } from '../ui/CardReveal';
 import { Dock } from '../ui/Dock';
 import { BeatReveal, WarmReveal, SparkOnSuccess } from '@/ui/animations/VdAnim';
+import { playDeltaThen } from '@/ui/utils';
 import type { GameState as ChooseGameState } from '@/models/game';
 import type { CardIntensity } from '@/models/cards';
 import { chooseNextCardReducer, type Action as ChooseAction } from '@/state/chooseNextCardReducer';
@@ -173,6 +174,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
   const [showDeckModal, setShowDeckModal] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [isDrawingPlayer, setIsDrawingPlayer] = useState(false);
+  const [drawOverlayVisible, setDrawOverlayVisible] = useState(false);
   const [highlightedName, setHighlightedName] = useState<string | null>(null);
   const [finalDrawName, setFinalDrawName] = useState<string | null>(null);
   const [cardPhase, setCardPhase] = useState<'idle' | 'drawing' | 'preparing' | 'revealed'>(
@@ -188,34 +190,49 @@ export const GameScreen: React.FC<GameScreenProps> = ({
   const drawTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const revealTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cardAnimationTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const deltaTimeoutsRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
-  const triggerPointDelta = useCallback((playerId: string, delta: number) => {
-    if (!playerId || delta === 0) {
-      return;
-    }
+  const isMountedRef = useRef(true);
+  const deltaGuardsRef = useRef<Record<string, symbol>>({});
 
-    setPointDeltas(prev => ({
-      ...prev,
-      [playerId]: delta,
-    }));
+  const playDeltaForPlayer = useCallback(
+    (playerId: string, delta: number, delay = 900) => {
+      if (!playerId || delta === 0) {
+        return Promise.resolve();
+      }
 
-    if (deltaTimeoutsRef.current[playerId]) {
-      clearTimeout(deltaTimeoutsRef.current[playerId]);
-    }
+      const token = Symbol('delta');
+      deltaGuardsRef.current[playerId] = token;
 
-    deltaTimeoutsRef.current[playerId] = setTimeout(() => {
-      setPointDeltas(prev => {
-        if (prev[playerId] !== delta) {
-          return prev;
+      const setDelta = (pid: string, value: number | null) => {
+        if (!isMountedRef.current || pid !== playerId) {
+          return;
         }
-        const next = { ...prev };
-        next[playerId] = null;
-        return next;
-      });
-      delete deltaTimeoutsRef.current[playerId];
-    }, 1000);
-  }, []);
+
+        if (value === null) {
+          if (deltaGuardsRef.current[playerId] !== token) {
+            return;
+          }
+          setPointDeltas(prev => {
+            if (prev[playerId] === undefined) {
+              return prev;
+            }
+            const next = { ...prev };
+            delete next[playerId];
+            return next;
+          });
+          delete deltaGuardsRef.current[playerId];
+          return;
+        }
+
+        deltaGuardsRef.current[playerId] = token;
+        setPointDeltas(prev => ({ ...prev, [playerId]: value }));
+      };
+
+      return playDeltaThen(setDelta, playerId, delta, delay);
+    },
+    [setPointDeltas]
+  );
+
 
   const currentPlayer =
     gameState.currentPlayerIndex !== null
@@ -233,7 +250,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({
           const before = prev.players[pid]?.points ?? 0;
           const after = next.players[pid]?.points ?? 0;
           if (before !== after) {
-            triggerPointDelta(pid, after - before);
+
+            void playDeltaForPlayer(pid, after - before);
+
           }
         });
 
@@ -246,7 +265,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({
         return next;
       });
     },
-    [onRemoveCardFromDeck, triggerPointDelta]
+
+    [onRemoveCardFromDeck, playDeltaForPlayer]
+
   );
 
   useEffect(() => {
@@ -270,7 +291,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({
           points: Math.max(0, player.points + delta),
         };
 
-        triggerPointDelta(playerId, delta);
 
         return {
           ...prev,
@@ -281,7 +301,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({
         };
       });
     },
-    [triggerPointDelta]
+    []
+
   );
 
   const clearDrawTimers = useCallback(() => {
@@ -305,7 +326,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({
   }, []);
 
   useEffect(() => {
+    isMountedRef.current = true;
     return () => {
+      isMountedRef.current = false;
+      deltaGuardsRef.current = {};
       clearDrawTimers();
       clearCardAnimationTimers();
       Object.values(deltaTimeoutsRef.current).forEach(clearTimeout);
@@ -389,6 +413,21 @@ export const GameScreen: React.FC<GameScreenProps> = ({
       setShowCreateModal(false);
     }
   }, [currentPlayer, showCreateModal]);
+
+  useEffect(() => {
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    if (isDrawingPlayer) {
+      timeout = setTimeout(() => setDrawOverlayVisible(true), 900);
+    } else {
+      setDrawOverlayVisible(false);
+    }
+
+    return () => {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+    };
+  }, [isDrawingPlayer]);
 
   useEffect(() => {
     if (cardPhase === 'drawing' || cardPhase === 'preparing') {
@@ -479,10 +518,13 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     );
   };
 
-  const handleFulfill = () => {
+
+  const handleFulfill = async () => {
     const fulfillingPlayerId = currentPlayer?.id;
     if (fulfillingPlayerId) {
       adjustPlayerPoints(fulfillingPlayerId, 1);
+      await playDeltaForPlayer(fulfillingPlayerId, 1, 900);
+
     }
 
     onFulfillCard(); // lógica existente
@@ -546,7 +588,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     if (!currentPlayer || !chooserPower) {
       return;
     }
-    if (chooserPower.points < 5 || chooseCooldown > 0) {
+
+    if (chooserPower.points < 5 || chooseCooldown !== 0) {
+
       return;
     }
     dispatchPower({ type: 'POWER_CHOOSE_NEXT_REQUEST', chooserId: currentPlayer.id });
@@ -672,8 +716,14 @@ export const GameScreen: React.FC<GameScreenProps> = ({
         />
       )}
 
-      {isDrawingPlayer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg-900/95 backdrop-blur-md">
+      {(isDrawingPlayer || drawOverlayVisible) && (
+        <div
+          className={`fixed inset-0 flex items-center justify-center bg-bg-900/95 backdrop-blur-md transition-opacity duration-200 ${
+            drawOverlayVisible
+              ? 'z-50 opacity-100 pointer-events-auto'
+              : 'z-10 opacity-0 pointer-events-none'
+          }`}
+        >
           <div className="w-full max-w-md rounded-card bg-bg-800/90 p-8 text-center">
             <div className="space-y-6">
               <div className="text-6xl">🎯</div>

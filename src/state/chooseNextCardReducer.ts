@@ -19,8 +19,9 @@ export function canTarget(state: GameState, chooserId: PlayerId, targetId: Playe
 }
 
 export function applyCooldown(state: GameState, pid: PlayerId, turns: number) {
+  const safeTurns = Math.max(0, turns | 0);
   const cd = { ...(state.cooldowns[pid] ?? {}) };
-  cd.choose_next_card = turns;
+  cd.choose_next_card = safeTurns;
   state.cooldowns = { ...state.cooldowns, [pid]: cd };
 }
 
@@ -95,6 +96,11 @@ export function chooseNextCardReducer(state: GameState, action: Action): GameSta
       const chooser = next.players[chooserId];
       if (!chooser) {
         next.logs.push(`Falha: ${chooserId} não encontrado para Escolha do Destino.`);
+        return next;
+      }
+      const cooldown = next.cooldowns[chooserId]?.choose_next_card ?? 0;
+      if (cooldown > 0) {
+        next.logs.push('Falha: cooldown ativo.');
         return next;
       }
       if (!debitPoints(next, chooserId, 5)) {
@@ -177,12 +183,16 @@ export function chooseNextCardReducer(state: GameState, action: Action): GameSta
     }
     case 'TICK_TURN': {
       const next = cloneState(state);
+      ensureCooldowns(next);
       Object.entries(next.cooldowns).forEach(([pid, cd]) => {
-        if (typeof cd?.choose_next_card === 'number' && cd.choose_next_card > 0) {
-          next.cooldowns = {
-            ...next.cooldowns,
-            [pid]: { ...cd, choose_next_card: cd.choose_next_card - 1 },
-          };
+        if (typeof cd?.choose_next_card === 'number') {
+          const updated = Math.max(0, (cd.choose_next_card ?? 0) - 1);
+          if (updated !== cd.choose_next_card) {
+            next.cooldowns = {
+              ...next.cooldowns,
+              [pid]: { ...cd, choose_next_card: updated },
+            };
+          }
         }
       });
       return next;
