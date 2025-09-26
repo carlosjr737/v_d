@@ -1,18 +1,148 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { GameState, Card, Player } from '../types/game';
+import type { GameState as LegacyGameState, Card as GameCard, Player } from '../types/game';
 import { CheckCircle, Loader2 } from 'lucide-react';
 import { CreateCardModal } from './CreateCardModal';
 import { DeckModal } from './DeckModal';
+import { ChooseNextCardModal } from './ChooseNextCardModal';
 import { HUD } from '../ui/HUD';
 import { ChoiceGrid } from '../ui/ChoiceGrid';
 import { CardReveal } from '../ui/CardReveal';
 import { Dock } from '../ui/Dock';
 import { BeatReveal, WarmReveal, SparkOnSuccess } from '@/ui/animations/VdAnim';
+import type { GameState as ChooseGameState } from '@/models/game';
+import type { CardIntensity } from '@/models/cards';
+import { chooseNextCardReducer, type Action as ChooseAction } from '@/state/chooseNextCardReducer';
+import { toGameCard, toPowerCard } from '@/utils/powerCardAdapter';
+
+function createPowerStateFromGame(gameState: LegacyGameState): ChooseGameState {
+  const intensity = (gameState.intensity ?? 'leve') as CardIntensity;
+
+  const remainingByIntensity: Record<CardIntensity, string[]> = {
+    leve: [],
+    medio: [],
+    pesado: [],
+    extremo: [],
+  };
+
+  const cardsForIntensity = gameState.availableCards.filter(card => card.level === intensity);
+  remainingByIntensity[intensity] = cardsForIntensity.map(card => card.id);
+
+  const cardsById: ChooseGameState['cardsById'] = {};
+  cardsForIntensity.forEach(card => {
+    cardsById[card.id] = toPowerCard(card, intensity);
+  });
+
+  const players: ChooseGameState['players'] = {};
+  const queuedNextForPlayer: ChooseGameState['queuedNextForPlayer'] = {};
+  const cooldowns: ChooseGameState['cooldowns'] = {};
+
+  gameState.players.forEach(player => {
+    players[player.id] = {
+      id: player.id,
+      name: player.name,
+      points: 10,
+      lastTargetedByChooseNextCard: null,
+    };
+    queuedNextForPlayer[player.id] = null;
+    cooldowns[player.id] = { choose_next_card: 0 };
+  });
+
+  return {
+    intensity,
+    remainingByIntensity,
+    cardsById,
+    players,
+    queuedNextForPlayer,
+    cooldowns,
+    logs: [],
+  };
+}
+
+function syncPowerStateWithGame(prev: ChooseGameState, gameState: LegacyGameState): ChooseGameState {
+  if (!gameState.intensity) {
+    return prev;
+  }
+
+  const intensity = gameState.intensity as CardIntensity;
+
+  if (intensity !== prev.intensity) {
+    const fresh = createPowerStateFromGame(gameState);
+    Object.keys(fresh.players).forEach(pid => {
+      if (prev.players[pid]) {
+        fresh.players[pid].points = prev.players[pid].points;
+        fresh.players[pid].lastTargetedByChooseNextCard =
+          prev.players[pid].lastTargetedByChooseNextCard ?? null;
+        const prevCooldown = prev.cooldowns[pid]?.choose_next_card ?? 0;
+        fresh.cooldowns[pid] = { choose_next_card: prevCooldown };
+        fresh.queuedNextForPlayer[pid] = prev.queuedNextForPlayer[pid] ?? null;
+      }
+    });
+    fresh.logs = prev.logs;
+    return fresh;
+  }
+
+  const cardsForIntensity = gameState.availableCards.filter(card => card.level === intensity);
+  const cardsById = { ...prev.cardsById };
+  cardsForIntensity.forEach(card => {
+    cardsById[card.id] = toPowerCard(card, intensity);
+  });
+
+  const availableIds = new Set(cardsForIntensity.map(card => card.id));
+  const previousQueue = prev.remainingByIntensity[intensity] ?? [];
+  const filteredQueue = previousQueue.filter(id => availableIds.has(id));
+  const missing: string[] = [];
+  availableIds.forEach(id => {
+    if (!filteredQueue.includes(id)) {
+      missing.push(id);
+    }
+  });
+
+  const remainingByIntensity: ChooseGameState['remainingByIntensity'] = {
+    ...prev.remainingByIntensity,
+    [intensity]: [...filteredQueue, ...missing],
+  };
+
+  const players: ChooseGameState['players'] = {};
+  const queuedNextForPlayer: ChooseGameState['queuedNextForPlayer'] = {};
+  const cooldowns: ChooseGameState['cooldowns'] = {};
+
+  gameState.players.forEach(player => {
+    const prevPlayer = prev.players[player.id];
+    players[player.id] = {
+      id: player.id,
+      name: player.name,
+      points: prevPlayer?.points ?? 10,
+      lastTargetedByChooseNextCard: prevPlayer?.lastTargetedByChooseNextCard ?? null,
+    };
+    queuedNextForPlayer[player.id] = prev.queuedNextForPlayer[player.id] ?? null;
+    cooldowns[player.id] = {
+      choose_next_card: prev.cooldowns[player.id]?.choose_next_card ?? 0,
+    };
+  });
+
+  Object.keys(prev.players).forEach(pid => {
+    if (!players[pid]) {
+      delete queuedNextForPlayer[pid];
+      delete cooldowns[pid];
+    }
+  });
+
+  return {
+    ...prev,
+    intensity,
+    cardsById,
+    remainingByIntensity,
+    players,
+    queuedNextForPlayer,
+    cooldowns,
+  };
+}
 
 
 interface GameScreenProps {
-  gameState: GameState;
-  onDrawCard: (type: 'truth' | 'dare') => Card | null;
+  gameState: LegacyGameState;
+  onDrawCard: (type: 'truth' | 'dare') => GameCard | null;
+  onForceCard: (card: GameCard) => GameCard | null;
   onFulfillCard: () => void;
   onPassCard: () => void;
   onAddCustomCard: (
@@ -22,16 +152,21 @@ interface GameScreenProps {
   ) => Promise<boolean>;
   onResetGame: () => void;
   onDrawNextPlayer: () => Player | null;
+  onAddCardToDeck: (card: GameCard) => void;
+  onRemoveCardFromDeck: (cardId: string) => void;
 }
 
 export const GameScreen: React.FC<GameScreenProps> = ({
   gameState,
   onDrawCard,
+  onForceCard,
   onFulfillCard,
   onPassCard,
   onAddCustomCard,
   onResetGame,
   onDrawNextPlayer,
+  onAddCardToDeck,
+  onRemoveCardFromDeck,
 }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDeckModal, setShowDeckModal] = useState(false);
@@ -42,8 +177,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({
   const [cardPhase, setCardPhase] = useState<'idle' | 'drawing' | 'preparing' | 'revealed'>(
     gameState.currentCard ? 'revealed' : 'idle'
   );
-  const [displayedCard, setDisplayedCard] = useState<Card | null>(gameState.currentCard);
+  const [displayedCard, setDisplayedCard] = useState<GameCard | null>(gameState.currentCard);
   const [ui, setUi] = useState({ drawing: false, justFulfilled: false });
+  const [isChooseModalOpen, setIsChooseModalOpen] = useState(false);
+  const [powerState, setPowerState] = useState<ChooseGameState>(() => createPowerStateFromGame(gameState));
 
   const drawIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const drawTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -56,6 +193,26 @@ export const GameScreen: React.FC<GameScreenProps> = ({
       : null;
   const { currentCard } = gameState;
   const intensity = gameState.intensity!;
+
+  const dispatchPower = useCallback(
+    (action: ChooseAction) => {
+      setPowerState(prev => {
+        const next = chooseNextCardReducer(prev, action);
+        if (action.type === 'POWER_CHOOSE_NEXT_COMMIT') {
+          const { targetId, chosenCardId } = action.payload;
+          if (next.queuedNextForPlayer[targetId] === chosenCardId && prev.queuedNextForPlayer[targetId] !== chosenCardId) {
+            onRemoveCardFromDeck(chosenCardId);
+          }
+        }
+        return next;
+      });
+    },
+    [onRemoveCardFromDeck]
+  );
+
+  useEffect(() => {
+    setPowerState(prev => syncPowerStateWithGame(prev, gameState));
+  }, [gameState.availableCards, gameState.intensity, gameState.players]);
 
   const clearDrawTimers = useCallback(() => {
     if (drawIntervalRef.current) {
@@ -83,6 +240,12 @@ export const GameScreen: React.FC<GameScreenProps> = ({
       clearCardAnimationTimers();
     };
   }, [clearCardAnimationTimers, clearDrawTimers]);
+
+  useEffect(() => {
+    if (!currentPlayer && isChooseModalOpen) {
+      setIsChooseModalOpen(false);
+    }
+  }, [currentPlayer, isChooseModalOpen]);
 
   const startPlayerDraw = useCallback(() => {
     if (isDrawingPlayer || gameState.players.length === 0) {
@@ -199,6 +362,31 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     setCardPhase('drawing');
     setDisplayedCard(null);
 
+    const forcedCardId = powerState.queuedNextForPlayer[currentPlayer.id];
+    if (forcedCardId) {
+      const forced = powerState.cardsById[forcedCardId];
+      if (forced) {
+        onForceCard(toGameCard(forced));
+        dispatchPower({ type: 'POWER_CHOOSE_NEXT_CONSUMED', targetId: currentPlayer.id });
+        dispatchPower({
+          type: 'LOG',
+          message: `Carta forçada entregue para ${currentPlayer.name}.`,
+        });
+        cardAnimationTimersRef.current.push(
+          setTimeout(() => {
+            setCardPhase('preparing');
+          }, 260)
+        );
+        cardAnimationTimersRef.current.push(
+          setTimeout(() => {
+            setCardPhase('revealed');
+          }, 900)
+        );
+        return;
+      }
+      dispatchPower({ type: 'POWER_CHOOSE_NEXT_CONSUMED', targetId: currentPlayer.id });
+    }
+
     const card = onDrawCard(type);
     if (!card) {
       alert(`Não há mais cartas de ${type === 'truth' ? 'Verdade' : 'Desafio'} disponíveis!`);
@@ -262,6 +450,18 @@ export const GameScreen: React.FC<GameScreenProps> = ({
   const hasBoost = Boolean(activeCard?.isBoosted);
   const isCardLoading = cardPhase !== 'revealed';
 
+  const chooserPower = currentPlayer ? powerState.players[currentPlayer.id] : undefined;
+  const chooseCooldown = currentPlayer
+    ? powerState.cooldowns[currentPlayer.id]?.choose_next_card ?? 0
+    : 0;
+  const isChoosePowerDisabled =
+    !currentPlayer || !chooserPower || chooserPower.points < 5 || chooseCooldown > 0;
+  const powerButtonHint = !currentPlayer
+    ? 'Aguardando jogador'
+    : chooseCooldown > 0
+    ? `Cooldown: ${chooseCooldown}`
+    : `${chooserPower.points} pts disponíveis`;
+
   const handleOpenCreate = () => {
     if (!currentPlayer) {
       return;
@@ -271,6 +471,13 @@ export const GameScreen: React.FC<GameScreenProps> = ({
 
   const handleOpenDeck = () => setShowDeckModal(true);
   const handleOpenReset = () => setShowResetConfirm(true);
+  const handleOpenChoosePower = () => {
+    if (!currentPlayer) {
+      return;
+    }
+    dispatchPower({ type: 'POWER_CHOOSE_NEXT_REQUEST', chooserId: currentPlayer.id });
+    setIsChooseModalOpen(true);
+  };
 
   return (
     <>
@@ -307,7 +514,15 @@ export const GameScreen: React.FC<GameScreenProps> = ({
           )}
         </div>
         <div>
-          <Dock onCreate={handleOpenCreate} onDeck={handleOpenDeck} onReset={handleOpenReset} canCreate={Boolean(currentPlayer)} />
+          <Dock
+            onCreate={handleOpenCreate}
+            onDeck={handleOpenDeck}
+            onReset={handleOpenReset}
+            onChoosePower={handleOpenChoosePower}
+            canCreate={Boolean(currentPlayer)}
+            powerDisabled={isChoosePowerDisabled}
+            powerHint={powerButtonHint}
+          />
         </div>
       </div>
 
@@ -359,6 +574,19 @@ export const GameScreen: React.FC<GameScreenProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {isChooseModalOpen && currentPlayer && (
+        <ChooseNextCardModal
+          isOpen={isChooseModalOpen}
+          onClose={() => setIsChooseModalOpen(false)}
+          state={powerState}
+          chooserId={currentPlayer.id}
+          dispatch={dispatchPower}
+          onCardCreated={card => {
+            onAddCardToDeck(toGameCard(card));
+          }}
+        />
       )}
 
       {isDrawingPlayer && (

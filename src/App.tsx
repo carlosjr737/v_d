@@ -8,12 +8,15 @@ function App() {
     gameState,
     startGame,
     drawCard,
+    forceCard,
     fulfillCard,
     passCard,
     addCustomCard,
     resetGame,
     isStartingGame,
     drawNextPlayer,
+    addCardToDeck,
+    removeCardFromDeck,
   } = useGameState();
 
   return (
@@ -27,11 +30,14 @@ function App() {
           <GameScreen
             gameState={gameState}
             onDrawCard={drawCard}
+            onForceCard={forceCard}
             onFulfillCard={fulfillCard}
             onPassCard={passCard}
             onAddCustomCard={addCustomCard}
             onResetGame={resetGame}
             onDrawNextPlayer={drawNextPlayer}
+            onAddCardToDeck={addCardToDeck}
+            onRemoveCardFromDeck={removeCardFromDeck}
           />
         )}
       </div>
