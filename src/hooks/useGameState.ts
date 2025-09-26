@@ -8,13 +8,8 @@ import {
   StartGameResult,
   StartGameOptions,
 } from '@/types/game';
-import { seedCards } from '@/data/seedCards';
-
-import {
-  fetchCardsByIntensity,
-  createRemoteCard,
-  REMOTE_DECK_ERROR_FLAG,
-} from '@/services/cardService';
+import { createRemoteCard } from '@/services/cardService';
+import { getCardsForType } from '@/services/cards';
 
 import { shuffleArray } from '@/utils/shuffle';
 import { sanitizeGameState } from '@/utils/sanitizeGameState';
@@ -108,28 +103,27 @@ export const useGameState = () => {
     let cardsToUse: Card[] = [];
 
     try {
-      const remoteCards = await fetchCardsByIntensity(intensity);
-      const remoteMetadata = remoteCards as {
-        [REMOTE_DECK_ERROR_FLAG]?: true;
-      };
-      const remoteFailed = Boolean(remoteMetadata[REMOTE_DECK_ERROR_FLAG]);
+      const [truthDeck, dareDeck] = await Promise.all([
+        getCardsForType(intensity, 'truth'),
+        getCardsForType(intensity, 'dare'),
+      ]);
 
-      if (remoteCards.length > 0) {
-        cardsToUse = remoteCards.map(card => ({
-          ...card,
-          isBoosted: Boolean(card.isBoosted),
-        }));
-      } else {
+      const remoteFailed = truthDeck.remoteFailed || dareDeck.remoteFailed;
+      const remoteProvidedCards = truthDeck.remoteHasData || dareDeck.remoteHasData;
+
+      if (remoteFailed) {
         usedFallback = true;
         success = false;
-        errorMessage = remoteFailed
-          ? 'Não foi possível carregar as cartas online. Usamos o baralho padrão offline.'
-          : 'Nenhuma carta foi encontrada no baralho online para esse nível. Usamos o baralho padrão offline.';
+        errorMessage =
+          'Não foi possível carregar as cartas online. Usamos o baralho padrão offline.';
+      } else if (!remoteProvidedCards) {
+        usedFallback = true;
+        success = false;
+        errorMessage =
+          'Nenhuma carta foi encontrada no baralho online para esse nível. Usamos o baralho padrão offline.';
       }
 
-      if (cardsToUse.length === 0) {
-        cardsToUse = seedCards.filter(card => card.level === intensity);
-      }
+      cardsToUse = shuffleArray([...truthDeck.cards, ...dareDeck.cards]);
 
       if (cardsToUse.length === 0) {
         usedFallback = true;
