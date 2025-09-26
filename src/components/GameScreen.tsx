@@ -4,7 +4,8 @@ import { CheckCircle, Loader2 } from 'lucide-react';
 import { CreateCardModal } from './CreateCardModal';
 import { DeckModal } from './DeckModal';
 import { ChooseNextCardModal } from './ChooseNextCardModal';
-import { HUD } from '../ui/HUD';
+import { TurnHeader } from '@/components/TurnHeader';
+import { ChooseNextCardButton } from '@/components/ChooseNextCardButton';
 import { ChoiceGrid } from '../ui/ChoiceGrid';
 import { CardReveal } from '../ui/CardReveal';
 import { Dock } from '../ui/Dock';
@@ -181,11 +182,40 @@ export const GameScreen: React.FC<GameScreenProps> = ({
   const [ui, setUi] = useState({ drawing: false, justFulfilled: false });
   const [isChooseModalOpen, setIsChooseModalOpen] = useState(false);
   const [powerState, setPowerState] = useState<ChooseGameState>(() => createPowerStateFromGame(gameState));
+  const [pointDeltas, setPointDeltas] = useState<Record<string, number | null>>({});
 
   const drawIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const drawTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const revealTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cardAnimationTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const deltaTimeoutsRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  const triggerPointDelta = useCallback((playerId: string, delta: number) => {
+    if (!playerId || delta === 0) {
+      return;
+    }
+
+    setPointDeltas(prev => ({
+      ...prev,
+      [playerId]: delta,
+    }));
+
+    if (deltaTimeoutsRef.current[playerId]) {
+      clearTimeout(deltaTimeoutsRef.current[playerId]);
+    }
+
+    deltaTimeoutsRef.current[playerId] = setTimeout(() => {
+      setPointDeltas(prev => {
+        if (prev[playerId] !== delta) {
+          return prev;
+        }
+        const next = { ...prev };
+        next[playerId] = null;
+        return next;
+      });
+      delete deltaTimeoutsRef.current[playerId];
+    }, 1000);
+  }, []);
 
   const currentPlayer =
     gameState.currentPlayerIndex !== null
@@ -198,6 +228,15 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     (action: ChooseAction) => {
       setPowerState(prev => {
         const next = chooseNextCardReducer(prev, action);
+
+        Object.keys(next.players).forEach(pid => {
+          const before = prev.players[pid]?.points ?? 0;
+          const after = next.players[pid]?.points ?? 0;
+          if (before !== after) {
+            triggerPointDelta(pid, after - before);
+          }
+        });
+
         if (action.type === 'POWER_CHOOSE_NEXT_COMMIT') {
           const { targetId, chosenCardId } = action.payload;
           if (next.queuedNextForPlayer[targetId] === chosenCardId && prev.queuedNextForPlayer[targetId] !== chosenCardId) {
@@ -207,12 +246,43 @@ export const GameScreen: React.FC<GameScreenProps> = ({
         return next;
       });
     },
-    [onRemoveCardFromDeck]
+    [onRemoveCardFromDeck, triggerPointDelta]
   );
 
   useEffect(() => {
     setPowerState(prev => syncPowerStateWithGame(prev, gameState));
   }, [gameState.availableCards, gameState.intensity, gameState.players]);
+
+  const adjustPlayerPoints = useCallback(
+    (playerId: string, delta: number) => {
+      if (!playerId || delta === 0) {
+        return;
+      }
+
+      setPowerState(prev => {
+        const player = prev.players[playerId];
+        if (!player) {
+          return prev;
+        }
+
+        const updatedPlayer = {
+          ...player,
+          points: Math.max(0, player.points + delta),
+        };
+
+        triggerPointDelta(playerId, delta);
+
+        return {
+          ...prev,
+          players: {
+            ...prev.players,
+            [playerId]: updatedPlayer,
+          },
+        };
+      });
+    },
+    [triggerPointDelta]
+  );
 
   const clearDrawTimers = useCallback(() => {
     if (drawIntervalRef.current) {
@@ -238,6 +308,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     return () => {
       clearDrawTimers();
       clearCardAnimationTimers();
+      Object.values(deltaTimeoutsRef.current).forEach(clearTimeout);
+      deltaTimeoutsRef.current = {};
     };
   }, [clearCardAnimationTimers, clearDrawTimers]);
 
@@ -408,6 +480,11 @@ export const GameScreen: React.FC<GameScreenProps> = ({
   };
 
   const handleFulfill = () => {
+    const fulfillingPlayerId = currentPlayer?.id;
+    if (fulfillingPlayerId) {
+      adjustPlayerPoints(fulfillingPlayerId, 1);
+    }
+
     onFulfillCard(); // lógica existente
     setUi((s) => ({ ...s, justFulfilled: true }));
     setTimeout(() => setUi((s) => ({ ...s, justFulfilled: false })), 520);
@@ -440,8 +517,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({
   const canDrawCard = Boolean(currentPlayer) && !isDrawingPlayer && cardPhase === 'idle';
   const canResolveCard = cardPhase === 'revealed' && Boolean(currentCard);
 
-  const activeName = currentPlayer?.name ?? finalDrawName ?? highlightedName ?? '';
-  const currentPlayerInitial = activeName ? activeName.charAt(0).toUpperCase() : '—';
   const boostPoints = currentPlayer?.boostPoints ?? 0;
 
   const activeCard = displayedCard ?? currentCard;
@@ -454,13 +529,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({
   const chooseCooldown = currentPlayer
     ? powerState.cooldowns[currentPlayer.id]?.choose_next_card ?? 0
     : 0;
-  const isChoosePowerDisabled =
-    !currentPlayer || !chooserPower || chooserPower.points < 5 || chooseCooldown > 0;
-  const powerButtonHint = !currentPlayer
-    ? 'Aguardando jogador'
-    : chooseCooldown > 0
-    ? `Cooldown: ${chooseCooldown}`
-    : `${chooserPower.points} pts disponíveis`;
+  const chooserPoints = chooserPower?.points ?? 0;
+  const currentPlayerPoints = currentPlayer ? chooserPoints : 0;
+  const currentPlayerDelta = currentPlayer ? pointDeltas[currentPlayer.id] ?? null : null;
 
   const handleOpenCreate = () => {
     if (!currentPlayer) {
@@ -472,7 +543,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({
   const handleOpenDeck = () => setShowDeckModal(true);
   const handleOpenReset = () => setShowResetConfirm(true);
   const handleOpenChoosePower = () => {
-    if (!currentPlayer) {
+    if (!currentPlayer || !chooserPower) {
+      return;
+    }
+    if (chooserPower.points < 5 || chooseCooldown > 0) {
       return;
     }
     dispatchPower({ type: 'POWER_CHOOSE_NEXT_REQUEST', chooserId: currentPlayer.id });
@@ -481,11 +555,15 @@ export const GameScreen: React.FC<GameScreenProps> = ({
 
   return (
     <>
-      <div className="grid min-h-dvh grid-rows-[56px_auto_88px] overflow-hidden">
-        <div className="px-4 py-2">
-          {intensity && (
-            <HUD intensity={intensity} currentPlayerInitial={currentPlayerInitial} boostPoints={boostPoints} />
-          )}
+      <div className="grid min-h-dvh grid-rows-[auto_auto_88px] overflow-hidden">
+        <div className="px-4 py-3">
+          <TurnHeader
+            currentPlayer={currentPlayer}
+            intensity={intensity}
+            boostPoints={boostPoints}
+            points={currentPlayerPoints}
+            lastDelta={currentPlayerDelta}
+          />
         </div>
         <div className="overflow-hidden">
           {cardPhase === 'idle' ? (
@@ -520,8 +598,13 @@ export const GameScreen: React.FC<GameScreenProps> = ({
             onReset={handleOpenReset}
             onChoosePower={handleOpenChoosePower}
             canCreate={Boolean(currentPlayer)}
-            powerDisabled={isChoosePowerDisabled}
-            powerHint={powerButtonHint}
+            powerButton={
+              <ChooseNextCardButton
+                currentPlayerId={currentPlayer?.id ?? null}
+                state={powerState}
+                onOpenModal={handleOpenChoosePower}
+              />
+            }
           />
         </div>
       </div>
