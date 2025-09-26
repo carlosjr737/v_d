@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { type ReactNode } from 'react';
 
 interface DockProps {
   onCreate: () => void;
@@ -6,8 +6,7 @@ interface DockProps {
   onReset: () => void;
   onChoosePower: () => void;
   canCreate?: boolean;
-  powerDisabled?: boolean;
-  powerHint?: string;
+  powerButton?: ReactNode;
 }
 
 export const Dock: React.FC<DockProps> = ({
@@ -16,8 +15,7 @@ export const Dock: React.FC<DockProps> = ({
   onReset,
   onChoosePower,
   canCreate = true,
-  powerDisabled = false,
-  powerHint,
+  powerButton,
 }) => {
   return (
     <div className="h-[88px] border-t border-border bg-bg-800/90 p-3 backdrop-blur">
@@ -31,16 +29,19 @@ export const Dock: React.FC<DockProps> = ({
           <span className="text-xl">✚</span>
           <span className="text-xs font-semibold">Criar</span>
         </button>
-        <button
-          type="button"
-          onClick={onChoosePower}
-          disabled={powerDisabled}
-          className="flex h-full flex-col items-center justify-center gap-1 rounded-card bg-bg-900/60 text-white transition-all hover:scale-105 hover:bg-accent-500/20 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <span className="text-xl">🎯</span>
-          <span className="text-[11px] font-semibold leading-tight text-center">Escolha do Destino</span>
-          <span className="text-[11px] text-white/60">{powerHint ?? 'Custo: 5 pts'}</span>
-        </button>
+        <div role="presentation" className="flex h-full w-full">
+          {powerButton ?? (
+            <button
+              type="button"
+              onClick={onChoosePower}
+              className="flex h-full w-full flex-col items-center justify-center gap-1 rounded-card bg-bg-900/60 text-white transition-all hover:scale-105 hover:bg-accent-500/20 active:scale-95"
+            >
+              <span className="text-xl">🎯</span>
+              <span className="text-[11px] font-semibold leading-tight text-center">Escolha do Destino</span>
+              <span className="text-[11px] text-white/60">Custo: 5 pts</span>
+            </button>
+          )}
+        </div>
         <button
           type="button"
           onClick={onDeck}
