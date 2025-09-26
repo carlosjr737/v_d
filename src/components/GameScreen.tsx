@@ -190,6 +190,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
   const drawTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const revealTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cardAnimationTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
   const isMountedRef = useRef(true);
   const deltaGuardsRef = useRef<Record<string, symbol>>({});
 
@@ -232,6 +233,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     [setPointDeltas]
   );
 
+
   const currentPlayer =
     gameState.currentPlayerIndex !== null
       ? gameState.players[gameState.currentPlayerIndex]
@@ -248,7 +250,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({
           const before = prev.players[pid]?.points ?? 0;
           const after = next.players[pid]?.points ?? 0;
           if (before !== after) {
+
             void playDeltaForPlayer(pid, after - before);
+
           }
         });
 
@@ -261,7 +265,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({
         return next;
       });
     },
+
     [onRemoveCardFromDeck, playDeltaForPlayer]
+
   );
 
   useEffect(() => {
@@ -285,6 +291,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
           points: Math.max(0, player.points + delta),
         };
 
+
         return {
           ...prev,
           players: {
@@ -295,6 +302,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
       });
     },
     []
+
   );
 
   const clearDrawTimers = useCallback(() => {
@@ -324,6 +332,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({
       deltaGuardsRef.current = {};
       clearDrawTimers();
       clearCardAnimationTimers();
+      Object.values(deltaTimeoutsRef.current).forEach(clearTimeout);
+      deltaTimeoutsRef.current = {};
     };
   }, [clearCardAnimationTimers, clearDrawTimers]);
 
@@ -508,11 +518,13 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     );
   };
 
+
   const handleFulfill = async () => {
     const fulfillingPlayerId = currentPlayer?.id;
     if (fulfillingPlayerId) {
       adjustPlayerPoints(fulfillingPlayerId, 1);
       await playDeltaForPlayer(fulfillingPlayerId, 1, 900);
+
     }
 
     onFulfillCard(); // lógica existente
@@ -576,7 +588,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     if (!currentPlayer || !chooserPower) {
       return;
     }
+
     if (chooserPower.points < 5 || chooseCooldown !== 0) {
+
       return;
     }
     dispatchPower({ type: 'POWER_CHOOSE_NEXT_REQUEST', chooserId: currentPlayer.id });

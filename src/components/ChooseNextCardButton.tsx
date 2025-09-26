@@ -1,5 +1,7 @@
+
 import { useCallback, useState } from 'react';
 import { Toast } from '@/components/Toast';
+
 import type { GameState } from '@/models/game';
 import type { PlayerId } from '@/models/players';
 
@@ -10,6 +12,7 @@ export type ChooseNextCardButtonProps = {
   toast?: { error?: (message: string) => void; info?: (message: string) => void };
 };
 
+
 type LocalToastState = { open: boolean; message: string; variant: 'error' | 'info' };
 
 export function ChooseNextCardButton({ currentPlayerId, state, onOpenModal, toast }: ChooseNextCardButtonProps) {
@@ -19,10 +22,12 @@ export function ChooseNextCardButton({ currentPlayerId, state, onOpenModal, toas
     variant: 'info',
   });
 
+
   const player = currentPlayerId ? state.players[currentPlayerId] : undefined;
   const points = player?.points ?? 0;
   const cooldown = currentPlayerId ? state.cooldowns[currentPlayerId]?.choose_next_card ?? 0 : 0;
   const hasEnoughPoints = points >= 5;
+
   const canUse = Boolean(player) && hasEnoughPoints && cooldown === 0;
 
   const openToast = useCallback(
@@ -45,16 +50,19 @@ export function ChooseNextCardButton({ currentPlayerId, state, onOpenModal, toas
   const handleClick = () => {
     if (!player) {
       openToast('info', 'Aguardando jogador para usar a ação especial.');
+
       return;
     }
 
     if (!hasEnoughPoints) {
+
       openToast('error', 'Você precisa de 5 pontos para executar esta ação especial.');
       return;
     }
 
     if (cooldown > 0) {
       openToast('info', 'Ação em recarga. Aguarde o fim do cooldown.');
+
       return;
     }
 
@@ -63,11 +71,14 @@ export function ChooseNextCardButton({ currentPlayerId, state, onOpenModal, toas
 
   const hint = !player
     ? 'Aguardando jogador'
+
     : cooldown > 0
+
     ? `Cooldown: ${cooldown}`
     : `${points} pts disponíveis`;
 
   return (
+
     <>
       <button
         type="button"
@@ -91,5 +102,6 @@ export function ChooseNextCardButton({ currentPlayerId, state, onOpenModal, toas
         onClose={() => setLocalToast(prev => ({ ...prev, open: false }))}
       />
     </>
+
   );
 }
