@@ -1,8 +1,8 @@
 .next
 node_modules
-tailwind.config.js
 postcss.config.js
-next.config.js
+tailwind.config.ts
+next.config.mjs
 **/*.config.js
 **/*.config.cjs
 **/*.config.mjs
