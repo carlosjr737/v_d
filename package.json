@@ -11,7 +11,8 @@
   "dependencies": {
     "next": "14.2.3",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-error-boundary": "^4.0.10"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.18",
