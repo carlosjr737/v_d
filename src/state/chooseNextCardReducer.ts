@@ -147,7 +147,7 @@ export function chooseNextCardReducer(state: GameState, action: Action): GameSta
           lastTargetedByChooseNextCard: chooserId,
         },
       };
-      applyCooldown(next, chooserId, 2);
+      applyCooldown(next, chooserId, 4);
       const card = next.cardsById[chosenCardId];
       const chooserName = chooser?.name ?? chooserId;
       const targetName = targetPlayer?.name ?? targetId;
