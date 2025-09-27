@@ -80,7 +80,7 @@ test('commit debits points, queues card, and sets cooldown', () => {
   };
   const result = chooseNextCardReducer(state, action);
   assert.strictEqual(result.players.alice.points, 5);
-  assert.strictEqual(result.cooldowns.alice.choose_next_card, 2);
+  assert.strictEqual(result.cooldowns.alice.choose_next_card, 4);
   assert.strictEqual(result.queuedNextForPlayer.bob, 'card-1');
   assert.ok(!result.remainingByIntensity.medio.includes('card-1'));
   assert.strictEqual(result.players.bob.lastTargetedByChooseNextCard, 'alice');

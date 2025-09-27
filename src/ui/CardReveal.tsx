@@ -5,8 +5,8 @@ interface CardRevealProps {
   deckTotal: string;
   pileCount: number;
   hasBoost: boolean;
-  onFulfill: () => void;
-  onPass: () => void;
+  onFulfill: () => void | Promise<void>;
+  onPass: () => void | Promise<void>;
   canResolve: boolean;
   isLoading?: boolean;
 }
