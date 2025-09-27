@@ -56,6 +56,9 @@ export function ChooseNextCardModal({
   const [actionError, setActionError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const lastCreatedCardIdRef = useRef<string | null>(null);
+
+
   const chooser = state.players[chooserId];
   const cooldown = state.cooldowns[chooserId]?.choose_next_card ?? 0;
 
@@ -82,16 +85,40 @@ export function ChooseNextCardModal({
     if (!isOpen) return;
     const reqId = ++reqIdRef.current;
     (async () => {
-      const list = getCandidateCards(state, optionsShown).slice(0, optionsShown);
+
+      const maxOptions = optionsShown ?? 3;
+      let list = getCandidateCards(state, maxOptions).slice(0, maxOptions);
+      const createdId = lastCreatedCardIdRef.current;
+      if (createdId) {
+        const createdCard = state.cardsById[createdId];
+        if (createdCard) {
+          list = [createdCard, ...list.filter(card => card.id !== createdId)].slice(0, maxOptions);
+        }
+      }
       if (isOpenRef.current && reqIdRef.current === reqId) {
         setCandidates(list);
-        setSelectedCardId(list[0]?.id ?? null);
+        if (!selectedCardId || !list.some(card => card.id === selectedCardId)) {
+          setSelectedCardId(list[0]?.id ?? null);
+        }
+        if (createdId && list.some(card => card.id === createdId)) {
+          lastCreatedCardIdRef.current = null;
+        }
+
       }
     })();
     return () => {
       reqIdRef.current++;
     };
-  }, [isOpen, optionsShown, state.intensity, state.remainingByIntensity[state.intensity]?.length]);
+
+  }, [
+    isOpen,
+    optionsShown,
+    selectedCardId,
+    state.cardsById,
+    state.intensity,
+    state.remainingByIntensity[state.intensity]?.length,
+  ]);
+
 
   useEffect(() => {
     if (!isOpen) return;
@@ -127,8 +154,12 @@ export function ChooseNextCardModal({
     const card = createCardLocal(state, { type: newCardType, text: trimmed, createdBy: chooserId });
     void dispatch({ type: 'CARD_CREATED_LOCAL', card });
     onCardCreated?.(card);
-    setCandidates(prev => [card, ...prev.filter(c => c.id !== card.id)].slice(0, optionsShown));
+
+    const maxOptions = optionsShown ?? 3;
+    setCandidates(prev => [card, ...prev.filter(c => c.id !== card.id)].slice(0, maxOptions));
+
     setSelectedCardId(card.id);
+    lastCreatedCardIdRef.current = card.id;
     setNewCardText('');
     setShowCreateForm(false);
     setFormError(null);
