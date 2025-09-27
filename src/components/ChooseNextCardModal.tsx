@@ -57,6 +57,8 @@ export function ChooseNextCardModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const lastCreatedCardIdRef = useRef<string | null>(null);
+  const suppressNextCandidatesRefreshRef = useRef(false);
+  const selectedCardIdRef = useRef<string | null>(null);
 
 
   const chooser = state.players[chooserId];
@@ -82,10 +84,19 @@ export function ChooseNextCardModal({
 
   const reqIdRef = useRef(0);
   useEffect(() => {
+    selectedCardIdRef.current = selectedCardId;
+  }, [selectedCardId]);
+
+  useEffect(() => {
     if (!isOpen) return;
+
+    if (suppressNextCandidatesRefreshRef.current) {
+      suppressNextCandidatesRefreshRef.current = false;
+      return;
+    }
+
     const reqId = ++reqIdRef.current;
     (async () => {
-
       const maxOptions = optionsShown ?? 3;
       let list = getCandidateCards(state, maxOptions).slice(0, maxOptions);
       const createdId = lastCreatedCardIdRef.current;
@@ -97,7 +108,8 @@ export function ChooseNextCardModal({
       }
       if (isOpenRef.current && reqIdRef.current === reqId) {
         setCandidates(list);
-        if (!selectedCardId || !list.some(card => card.id === selectedCardId)) {
+        const currentSelectedCardId = selectedCardIdRef.current;
+        if (!currentSelectedCardId || !list.some(card => card.id === currentSelectedCardId)) {
           setSelectedCardId(list[0]?.id ?? null);
         }
         if (createdId && list.some(card => card.id === createdId)) {
@@ -107,17 +119,10 @@ export function ChooseNextCardModal({
       }
     })();
     return () => {
-      reqIdRef.current++;
+      reqIdRef.current = reqId + 1;
     };
 
-  }, [
-    isOpen,
-    optionsShown,
-    selectedCardId,
-    state.cardsById,
-    state.intensity,
-    state.remainingByIntensity[state.intensity]?.length,
-  ]);
+  }, [isOpen, optionsShown, state]);
 
 
   useEffect(() => {
@@ -152,6 +157,8 @@ export function ChooseNextCardModal({
     }
 
     const card = createCardLocal(state, { type: newCardType, text: trimmed, createdBy: chooserId });
+    suppressNextCandidatesRefreshRef.current = true;
+
     void dispatch({ type: 'CARD_CREATED_LOCAL', card });
     onCardCreated?.(card);
 
@@ -160,13 +167,13 @@ export function ChooseNextCardModal({
 
     setSelectedCardId(card.id);
     lastCreatedCardIdRef.current = card.id;
-    setNewCardText('');
     setShowCreateForm(false);
+    setNewCardText('');
     setFormError(null);
     setActionError(null);
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (isSubmitting) {
       return;
     }
@@ -213,6 +220,8 @@ export function ChooseNextCardModal({
 
     setIsSubmitting(true);
 
+    reqIdRef.current++;
+
     const result = dispatch({
       type: 'POWER_CHOOSE_NEXT_COMMIT',
       payload: {
@@ -227,9 +236,7 @@ export function ChooseNextCardModal({
     }
     void Promise.resolve(result).finally(() => {
       setTimeout(() => {
-        if (!isOpenRef.current) {
-          setIsSubmitting(false);
-        }
+        setIsSubmitting(false);
       }, 300);
     });
   };
