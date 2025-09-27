@@ -1,48 +1,22 @@
-# Verdade ou Consequência — Guia de Identidade Visual
+# Fix de ESLint para deploy
 
-Este documento resume como aplicar e manter a identidade "Verdade ou Consequência" dentro do projeto. Toda a lógica do jogo permanece intocada: concentre-se apenas na camada visual.
+## Por que o erro acontecia
+O projeto usava `eslint@9.x`, mas `eslint-config-next@14.2.3` exige `eslint` ^7 ou ^8. Durante o `npm install` na Vercel, o resolver de dependências travava com `ERESOLVE` ao tentar conciliar essas versões. Fixamos o ESLint em `8.57.0`, compatível com o preset do Next.js.
 
-## Fontes oficiais
-- **Títulos:** [Bebas Neue](https://fonts.google.com/specimen/Bebas+Neue)
-- **Corpo/UI:** [Plus Jakarta Sans](https://fonts.google.com/specimen/Plus+Jakarta+Sans)
-- **Destaques:** [Playfair Display Italic](https://fonts.google.com/specimen/Playfair+Display)
+## Limpeza e reinstalação
+```bash
+rm -rf node_modules package-lock.json
+npm install
+npm run build
+```
 
-As fontes são importadas em `index.html` e aplicadas via classes utilitárias (`font-display`, `font-sans`, `font-accent`).
+## Como validar a versão instalada
+```bash
+npm ls eslint
+```
+O comando deve listar apenas `eslint@8.57.0`.
 
-## Tokens globais
-Todos os tokens estão centralizados em [`src/styles/tokens.css`](src/styles/tokens.css) e expostos ao Tailwind (`theme.extend`). Utilize **sempre** os tokens ao criar novas superfícies, gradientes ou estados.
-
-| Categoria | Tokens principais |
-|-----------|------------------|
-| Cores base | `--color-primary-300/500/700`, `--color-secondary-300/500/700`, `--color-accent-500` |
-| Superfícies | `--color-bg-900`, `--color-bg-800`, `--color-border`, `--overlay-veil` |
-| Texto | `--color-text`, `--color-text-2` |
-| Níveis | `--level-leve`, `--level-medio`, `--level-pesado`, `--level-extremo` |
-| Gradientes | `--grad-heat`, `--glow-dare`, `--grad-overlay` |
-| Tipografia | `--font-display`, `--font-body`, `--font-accent` |
-| Forma & efeitos | `--radius-pill`, `--radius-card`, `--shadow-heat`, `--focus-glow` |
-| Outros | `--button-height`, `--texture-noise` |
-
-## Utilitários Tailwind personalizados
-- **Cores:** `bg-primary-500`, `text-text-subtle`, `border-border`, `bg-level-leve`, etc.
-- **Raios:** `rounded-pill` e `rounded-card` para botões/cards.
-- **Sombras:** `shadow-heat` adiciona o brilho oficial (combine com `[--focus-shadow:var(--shadow-heat)]` para preservar a sombra em foco).
-- **Gradientes:** `bg-grad-heat` e `bg-glow-dare` aplicam os gradientes oficiais.
-
-## Padrões de componentes
-- **Botão primário:** `class="flex h-[var(--button-height)] items-center justify-center gap-3 rounded-pill bg-grad-heat px-6 text-text shadow-heat [--focus-shadow:var(--shadow-heat)]"`
-- **Botão secundário:** `class="rounded-pill border border-border bg-bg-800/70 text-text hover:border-primary-500"`
-- **Chip de nível:** `class="rounded-pill px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-text bg-level-<nivel>"`
-- **Card base:** `class="relative overflow-hidden rounded-card border border-border bg-bg-900/70 p-8 shadow-heat"`
-
-## Estados e acessibilidade
-- **Foco:** já configurado globalmente com `box-shadow: var(--focus-glow)`; lembre-se de definir `[--focus-shadow:var(--shadow-heat)]` em elementos com sombra permanente.
-- **Contraste:** utilize `text-text` para textos importantes e `text-text-subtle` para legendas.
-- **Áreas clicáveis:** mantenha altura mínima de `h-12` (ou `h-[var(--button-height)]`) para ações primárias.
-
-## Estrutura visual
-- O fundo base usa `var(--color-bg-900)` + `--grad-overlay` + `--texture-noise` (já aplicado em `src/index.css`).
-- Sobreposições como modais usam `bg-[var(--overlay-veil)]`.
-- Cartas e telas principais possuem uma **barra de nível** (`bg-level-*`) no topo para comunicar a intensidade atual.
-
-Siga estas diretrizes ao criar novas telas, estados ou componentes. Qualquer cor ou efeito adicional deve ser derivado dos tokens acima para preservar a coerência da marca.
+## Próximos passos para deploy na Vercel
+1. Garantir que o repositório contenha o `package-lock.json` gerado após a reinstalação.
+2. Executar o pipeline da Vercel; a instalação deve prosseguir sem conflitos de peer dependencies.
+3. Conferir os logs do build para verificar `eslint@8.57.0` e rodar `npm run build` com sucesso.
