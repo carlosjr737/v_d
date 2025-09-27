@@ -242,7 +242,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({
   const intensity = gameState.intensity!;
 
   const dispatchPower = useCallback(
-    (action: ChooseAction) => {
+    (action: ChooseAction): Promise<void> => {
+      const deltaPromises: Promise<void>[] = [];
+
       setPowerState(prev => {
         const next = chooseNextCardReducer(prev, action);
 
@@ -250,9 +252,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
           const before = prev.players[pid]?.points ?? 0;
           const after = next.players[pid]?.points ?? 0;
           if (before !== after) {
-
-            void playDeltaForPlayer(pid, after - before);
-
+            deltaPromises.push(playDeltaForPlayer(pid, after - before));
           }
         });
 
@@ -262,8 +262,15 @@ export const GameScreen: React.FC<GameScreenProps> = ({
             onRemoveCardFromDeck(chosenCardId);
           }
         }
+
         return next;
       });
+
+      if (deltaPromises.length === 0) {
+        return Promise.resolve();
+      }
+
+      return Promise.all(deltaPromises).then(() => undefined);
     },
 
     [onRemoveCardFromDeck, playDeltaForPlayer]
@@ -478,8 +485,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({
       const forced = powerState.cardsById[forcedCardId];
       if (forced) {
         onForceCard(toGameCard(forced));
-        dispatchPower({ type: 'POWER_CHOOSE_NEXT_CONSUMED', targetId: currentPlayer.id });
-        dispatchPower({
+        void dispatchPower({ type: 'POWER_CHOOSE_NEXT_CONSUMED', targetId: currentPlayer.id });
+        void dispatchPower({
           type: 'LOG',
           message: `Carta forçada entregue para ${currentPlayer.name}.`,
         });
@@ -495,7 +502,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
         );
         return;
       }
-      dispatchPower({ type: 'POWER_CHOOSE_NEXT_CONSUMED', targetId: currentPlayer.id });
+      void dispatchPower({ type: 'POWER_CHOOSE_NEXT_CONSUMED', targetId: currentPlayer.id });
     }
 
     const card = onDrawCard(type);
@@ -524,12 +531,17 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     if (fulfillingPlayerId) {
       adjustPlayerPoints(fulfillingPlayerId, 1);
       await playDeltaForPlayer(fulfillingPlayerId, 1, 900);
-
     }
 
     onFulfillCard(); // lógica existente
+    await dispatchPower({ type: 'TICK_TURN' });
     setUi((s) => ({ ...s, justFulfilled: true }));
     setTimeout(() => setUi((s) => ({ ...s, justFulfilled: false })), 520);
+  };
+
+  const handlePass = async () => {
+    onPassCard();
+    await dispatchPower({ type: 'TICK_TURN' });
   };
 
   const drawHighlightText = finalDrawName ?? highlightedName ?? 'Girando nomes...';
@@ -593,7 +605,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
 
       return;
     }
-    dispatchPower({ type: 'POWER_CHOOSE_NEXT_REQUEST', chooserId: currentPlayer.id });
+    void dispatchPower({ type: 'POWER_CHOOSE_NEXT_REQUEST', chooserId: currentPlayer.id });
     setIsChooseModalOpen(true);
   };
 
@@ -627,7 +639,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
                   pileCount={pileCount}
                   hasBoost={hasBoost}
                   onFulfill={handleFulfill}
-                  onPass={onPassCard}
+                  onPass={handlePass}
                   canResolve={canResolveCard}
                   isLoading={isCardLoading}
                 />
@@ -720,7 +732,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
         <div
           className={`fixed inset-0 flex items-center justify-center bg-bg-900/95 backdrop-blur-md transition-opacity duration-200 ${
             drawOverlayVisible
-              ? 'z-50 opacity-100 pointer-events-auto'
+              ? 'z-40 opacity-100 pointer-events-auto'
               : 'z-10 opacity-0 pointer-events-none'
           }`}
         >

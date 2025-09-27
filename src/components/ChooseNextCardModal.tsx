@@ -13,7 +13,7 @@ interface ChooseNextCardModalProps {
   state: GameState;
   chooserId: PlayerId;
   optionsShown?: number;
-  dispatch: (action: Action) => void;
+  dispatch: (action: Action) => void | Promise<void>;
   onCardCreated?: (card: Card) => void;
 }
 
@@ -111,7 +111,7 @@ export function ChooseNextCardModal({
     }
 
     const card = createCardLocal(state, { type: newCardType, text: trimmed, createdBy: chooserId });
-    dispatch({ type: 'CARD_CREATED_LOCAL', card });
+    void dispatch({ type: 'CARD_CREATED_LOCAL', card });
     onCardCreated?.(card);
     setCandidates(prev => [card, ...prev.filter(c => c.id !== card.id)]);
     setSelectedCardId(card.id);
@@ -121,7 +121,7 @@ export function ChooseNextCardModal({
     setActionError(null);
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (!chooser) {
       setActionError('Jogador inválido.');
       return;
@@ -149,7 +149,8 @@ export function ChooseNextCardModal({
 
     if (!selectedCardId) {
       if (candidates.length === 0) {
-        dispatch({ type: 'POWER_CHOOSE_NEXT_REFUND', chooserId });
+        const refundResult = dispatch({ type: 'POWER_CHOOSE_NEXT_REFUND', chooserId });
+        await Promise.resolve(refundResult);
         handleClose();
         return;
       }
@@ -162,7 +163,7 @@ export function ChooseNextCardModal({
       return;
     }
 
-    dispatch({
+    const result = dispatch({
       type: 'POWER_CHOOSE_NEXT_COMMIT',
       payload: {
         chooserId,
@@ -170,6 +171,7 @@ export function ChooseNextCardModal({
         chosenCardId: selectedCardId,
       },
     });
+    await Promise.resolve(result);
     handleClose();
   };
 
