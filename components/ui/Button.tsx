@@ -1,9 +1,9 @@
-import clsx from "clsx";
 import {
   forwardRef,
   type ButtonHTMLAttributes,
   type DetailedHTMLProps
 } from "react";
+import { cn } from "../../lib/cn";
 
 type ButtonVariant = "primary" | "secondary" | "ghost";
 
@@ -30,7 +30,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     return (
       <button
         ref={ref}
-        className={clsx(
+        className={cn(
           baseStyles,
           variantStyles[variant],
           fullWidth && "w-full",
