@@ -279,7 +279,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
 
   useEffect(() => {
     setPowerState(prev => syncPowerStateWithGame(prev, gameState));
-  }, [gameState.availableCards, gameState.intensity, gameState.players]);
+  }, [gameState]);
 
   const adjustPlayerPoints = useCallback(
     (playerId: string, delta: number) => {
