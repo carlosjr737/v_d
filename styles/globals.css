@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-neutral-50 text-neutral-900 antialiased;
+}
+
+a {
+  @apply text-primary hover:underline;
+}
+
+/* Utility classes for sheet/modal layout */
+.sheet-overlay {
+  @apply fixed inset-0 bg-neutral-900/50 backdrop-blur-sm transition-opacity;
+}
+
+.sheet-container {
+  @apply fixed left-1/2 bottom-0 top-auto w-full max-w-lg -translate-x-1/2 rounded-t-3xl bg-white p-6 shadow-sheet;
+  @apply sm:top-1/2 sm:bottom-auto sm:rounded-2xl sm:p-8 sm:shadow-modal sm:transform sm:-translate-y-1/2;
+}

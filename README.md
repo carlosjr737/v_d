@@ -1,48 +1,54 @@
-# Verdade ou Consequência — Guia de Identidade Visual
+# Boltz Passe Anual – UI de Paywall
 
-Este documento resume como aplicar e manter a identidade "Verdade ou Consequência" dentro do projeto. Toda a lógica do jogo permanece intocada: concentre-se apenas na camada visual.
+Interface em Next.js + TypeScript + Tailwind CSS para o fluxo de paywall do Passe Anual. Tudo aqui é UI-only, com funções stub para o time Boltz conectar Stripe e autenticação depois.
 
-## Fontes oficiais
-- **Títulos:** [Bebas Neue](https://fonts.google.com/specimen/Bebas+Neue)
-- **Corpo/UI:** [Plus Jakarta Sans](https://fonts.google.com/specimen/Plus+Jakarta+Sans)
-- **Destaques:** [Playfair Display Italic](https://fonts.google.com/specimen/Playfair+Display)
+## Pré-requisitos
 
-As fontes são importadas em `index.html` e aplicadas via classes utilitárias (`font-display`, `font-sans`, `font-accent`).
+- Node.js 18+
+- npm, pnpm ou yarn
 
-## Tokens globais
-Todos os tokens estão centralizados em [`src/styles/tokens.css`](src/styles/tokens.css) e expostos ao Tailwind (`theme.extend`). Utilize **sempre** os tokens ao criar novas superfícies, gradientes ou estados.
+## Como rodar
 
-| Categoria | Tokens principais |
-|-----------|------------------|
-| Cores base | `--color-primary-300/500/700`, `--color-secondary-300/500/700`, `--color-accent-500` |
-| Superfícies | `--color-bg-900`, `--color-bg-800`, `--color-border`, `--overlay-veil` |
-| Texto | `--color-text`, `--color-text-2` |
-| Níveis | `--level-leve`, `--level-medio`, `--level-pesado`, `--level-extremo` |
-| Gradientes | `--grad-heat`, `--glow-dare`, `--grad-overlay` |
-| Tipografia | `--font-display`, `--font-body`, `--font-accent` |
-| Forma & efeitos | `--radius-pill`, `--radius-card`, `--shadow-heat`, `--focus-glow` |
-| Outros | `--button-height`, `--texture-noise` |
+Instale as dependências e suba o servidor de desenvolvimento:
 
-## Utilitários Tailwind personalizados
-- **Cores:** `bg-primary-500`, `text-text-subtle`, `border-border`, `bg-level-leve`, etc.
-- **Raios:** `rounded-pill` e `rounded-card` para botões/cards.
-- **Sombras:** `shadow-heat` adiciona o brilho oficial (combine com `[--focus-shadow:var(--shadow-heat)]` para preservar a sombra em foco).
-- **Gradientes:** `bg-grad-heat` e `bg-glow-dare` aplicam os gradientes oficiais.
+```bash
+pnpm install
+pnpm dev
+```
 
-## Padrões de componentes
-- **Botão primário:** `class="flex h-[var(--button-height)] items-center justify-center gap-3 rounded-pill bg-grad-heat px-6 text-text shadow-heat [--focus-shadow:var(--shadow-heat)]"`
-- **Botão secundário:** `class="rounded-pill border border-border bg-bg-800/70 text-text hover:border-primary-500"`
-- **Chip de nível:** `class="rounded-pill px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-text bg-level-<nivel>"`
-- **Card base:** `class="relative overflow-hidden rounded-card border border-border bg-bg-900/70 p-8 shadow-heat"`
+Também funciona com npm ou yarn:
 
-## Estados e acessibilidade
-- **Foco:** já configurado globalmente com `box-shadow: var(--focus-glow)`; lembre-se de definir `[--focus-shadow:var(--shadow-heat)]` em elementos com sombra permanente.
-- **Contraste:** utilize `text-text` para textos importantes e `text-text-subtle` para legendas.
-- **Áreas clicáveis:** mantenha altura mínima de `h-12` (ou `h-[var(--button-height)]`) para ações primárias.
+```bash
+npm install
+npm run dev
+# ou
+yarn install
+yarn dev
+```
 
-## Estrutura visual
-- O fundo base usa `var(--color-bg-900)` + `--grad-overlay` + `--texture-noise` (já aplicado em `src/index.css`).
-- Sobreposições como modais usam `bg-[var(--overlay-veil)]`.
-- Cartas e telas principais possuem uma **barra de nível** (`bg-level-*`) no topo para comunicar a intensidade atual.
+A aplicação fica disponível em `http://localhost:3000`.
 
-Siga estas diretrizes ao criar novas telas, estados ou componentes. Qualquer cor ou efeito adicional deve ser derivado dos tokens acima para preservar a coerência da marca.
+## Fluxo de integração (Boltz)
+
+As páginas e componentes expõem props/funções para plugar integrações reais:
+
+- `PaywallSheet` recebe `onStartCheckout()` – conectar com Stripe Checkout.
+- `AuthPrompt` (e o próprio `PaywallSheet`) usam `onSignInWithGoogle()` e `onSignInWithEmail()` – conectar com o provedor de autenticação desejado.
+- O estado `isAuthenticated` deve ser atualizado após o login bem-sucedido.
+- O estado `hasAccess` deve ser atualizado após o retorno positivo do checkout.
+- Páginas de retorno do Stripe:
+  - `pages/checkout/sucesso.tsx` → usar como `success_url`.
+  - `pages/checkout/cancelado.tsx` → usar como `cancel_url`.
+
+> **TODOs marcados** no código indicam os pontos exatos para plugar as integrações.
+
+## Estrutura de UI
+
+- `/` – demo com os botões "Criar Carta" e "Escolher Destino". Ambos usam o gate `UseSpecialGate` para abrir o paywall quando necessário.
+- `components/PaywallSheet` – paywall acessível com foco preso, botões de login e CTA principal.
+- `components/AuthPrompt` – prompt visual para login (sem Firebase).
+- `components/UseSpecialGate` – wrapper para ações especiais.
+- `components/ui/Button` e `components/ui/Sheet` – camada de UI reutilizável (botões e sheet/modal responsivo).
+- `pages/checkout/sucesso` e `pages/checkout/cancelado` – telas estáticas pós-checkout.
+
+Tudo está pronto para mobile-first e responsivo via Tailwind.
