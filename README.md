@@ -1,3 +1,4 @@
+
 # Correção de build na Vercel
 
 ## Por que o erro ocorria
@@ -12,3 +13,4 @@ npm run build
 
 ## Antes do deploy
 Certifique-se de gerar e commitar o `package-lock.json` atualizado após a reinstalação para que a Vercel use exatamente as versões validadas.
+
