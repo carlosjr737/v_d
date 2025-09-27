@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Card } from '@/models/cards';
 import type { GameState } from '@/models/game';
 import type { PlayerId } from '@/models/players';
@@ -54,13 +54,17 @@ export function ChooseNextCardModal({
   const [newCardText, setNewCardText] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const lastCreatedCardIdRef = useRef<string | null>(null);
 
   const chooser = state.players[chooserId];
   const cooldown = state.cooldowns[chooserId]?.choose_next_card ?? 0;
 
   const availableTargets = useMemo(() => Object.values(state.players), [state.players]);
 
+  const isOpenRef = useRef(false);
   useEffect(() => {
+    isOpenRef.current = isOpen;
     if (!isOpen) {
       setCandidates([]);
       setSelectedCardId(null);
@@ -70,15 +74,45 @@ export function ChooseNextCardModal({
       setNewCardType('truth');
       setFormError(null);
       setActionError(null);
-      return;
+      setIsSubmitting(false);
     }
+  }, [isOpen]);
 
-    const nextCandidates = getCandidateCards(state, optionsShown).slice(0, optionsShown);
-    setCandidates(nextCandidates);
-    if (nextCandidates.length > 0) {
-      setSelectedCardId(nextCandidates[0].id);
-    }
-  }, [isOpen, optionsShown, state]);
+  const reqIdRef = useRef(0);
+  useEffect(() => {
+    if (!isOpen) return;
+    const reqId = ++reqIdRef.current;
+    (async () => {
+      const maxOptions = optionsShown ?? 3;
+      let list = getCandidateCards(state, maxOptions).slice(0, maxOptions);
+      const createdId = lastCreatedCardIdRef.current;
+      if (createdId) {
+        const createdCard = state.cardsById[createdId];
+        if (createdCard) {
+          list = [createdCard, ...list.filter(card => card.id !== createdId)].slice(0, maxOptions);
+        }
+      }
+      if (isOpenRef.current && reqIdRef.current === reqId) {
+        setCandidates(list);
+        if (!selectedCardId || !list.some(card => card.id === selectedCardId)) {
+          setSelectedCardId(list[0]?.id ?? null);
+        }
+        if (createdId && list.some(card => card.id === createdId)) {
+          lastCreatedCardIdRef.current = null;
+        }
+      }
+    })();
+    return () => {
+      reqIdRef.current++;
+    };
+  }, [
+    isOpen,
+    optionsShown,
+    selectedCardId,
+    state.cardsById,
+    state.intensity,
+    state.remainingByIntensity[state.intensity]?.length,
+  ]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -100,6 +134,7 @@ export function ChooseNextCardModal({
   }
 
   const handleClose = () => {
+    setIsSubmitting(false);
     onClose();
   };
 
@@ -113,15 +148,20 @@ export function ChooseNextCardModal({
     const card = createCardLocal(state, { type: newCardType, text: trimmed, createdBy: chooserId });
     void dispatch({ type: 'CARD_CREATED_LOCAL', card });
     onCardCreated?.(card);
-    setCandidates(prev => [card, ...prev.filter(c => c.id !== card.id)]);
+    const maxOptions = optionsShown ?? 3;
+    setCandidates(prev => [card, ...prev.filter(c => c.id !== card.id)].slice(0, maxOptions));
     setSelectedCardId(card.id);
+    lastCreatedCardIdRef.current = card.id;
     setNewCardText('');
     setShowCreateForm(false);
     setFormError(null);
     setActionError(null);
   };
 
-  const handleConfirm = async () => {
+  const handleConfirm = () => {
+    if (isSubmitting) {
+      return;
+    }
     if (!chooser) {
       setActionError('Jogador inválido.');
       return;
@@ -150,7 +190,7 @@ export function ChooseNextCardModal({
     if (!selectedCardId) {
       if (candidates.length === 0) {
         const refundResult = dispatch({ type: 'POWER_CHOOSE_NEXT_REFUND', chooserId });
-        await Promise.resolve(refundResult);
+        void Promise.resolve(refundResult);
         handleClose();
         return;
       }
@@ -163,6 +203,8 @@ export function ChooseNextCardModal({
       return;
     }
 
+    setIsSubmitting(true);
+
     const result = dispatch({
       type: 'POWER_CHOOSE_NEXT_COMMIT',
       payload: {
@@ -171,8 +213,17 @@ export function ChooseNextCardModal({
         chosenCardId: selectedCardId,
       },
     });
-    await Promise.resolve(result);
-    handleClose();
+    onClose();
+    if (typeof window !== 'undefined') {
+      window.location.hash = '#/jogar';
+    }
+    void Promise.resolve(result).finally(() => {
+      setTimeout(() => {
+        if (!isOpenRef.current) {
+          setIsSubmitting(false);
+        }
+      }, 300);
+    });
   };
 
   const hasNoCards = candidates.length === 0;
@@ -318,9 +369,27 @@ export function ChooseNextCardModal({
           <button
             type="button"
             onClick={handleConfirm}
-            className="rounded-lg bg-accent-500 px-5 py-2 text-sm font-semibold text-bg-900 transition hover:bg-accent-400 disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/50"
-            disabled={!selectedCardId || !selectedTarget || !state.players[selectedTarget] || !chooser || chooser.points < 5 || cooldown > 0}
-            aria-disabled={!selectedCardId || !selectedTarget || !state.players[selectedTarget] || !chooser || chooser.points < 5 || cooldown > 0}
+            className={`rounded-lg bg-accent-500 px-5 py-2 text-sm font-semibold text-bg-900 transition hover:bg-accent-400 disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/50 ${
+              isSubmitting ? 'opacity-60 cursor-wait' : ''
+            }`}
+            disabled={
+              isSubmitting ||
+              !selectedCardId ||
+              !selectedTarget ||
+              !state.players[selectedTarget] ||
+              !chooser ||
+              chooser.points < 5 ||
+              cooldown > 0
+            }
+            aria-disabled={
+              isSubmitting ||
+              !selectedCardId ||
+              !selectedTarget ||
+              !state.players[selectedTarget] ||
+              !chooser ||
+              chooser.points < 5 ||
+              cooldown > 0
+            }
           >
             Confirmar
           </button>
