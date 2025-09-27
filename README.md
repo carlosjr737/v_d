@@ -1,3 +1,4 @@
+
 # Fix de ESLint para deploy
 
 ## Por que o erro acontecia
@@ -20,3 +21,4 @@ O comando deve listar apenas `eslint@8.57.0`.
 1. Garantir que o repositório contenha o `package-lock.json` gerado após a reinstalação.
 2. Executar o pipeline da Vercel; a instalação deve prosseguir sem conflitos de peer dependencies.
 3. Conferir os logs do build para verificar `eslint@8.57.0` e rodar `npm run build` com sucesso.
+
