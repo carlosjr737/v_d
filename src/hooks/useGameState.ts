@@ -81,6 +81,19 @@ export const useGameState = () => {
   }, [gameState]);
 
 
+  const setSetupIntensity = (level: IntensityLevel) => {
+    setGameState(prev => {
+      if (prev.phase !== 'setup' || prev.intensity === level) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        intensity: level,
+      };
+    });
+  };
+
   const startGame = async (
     mode: GameMode,
     intensity: IntensityLevel,
@@ -364,6 +377,7 @@ export const useGameState = () => {
 
   return {
     gameState,
+    setSetupIntensity,
     startGame,
     drawCard,
     forceCard,

@@ -12,11 +12,12 @@ import { OnboardingSlides } from '../ui/setup/OnboardingSlides';
 import { SetupHeader } from '../ui/setup/SetupHeader';
 import { SetupAccordion } from '../ui/setup/SetupAccordion';
 import { SegmentedMode } from '../ui/setup/SegmentedMode';
-import { IntensityChips } from '../ui/setup/IntensityChips';
 import { PlayersCompact } from '../ui/setup/PlayersCompact';
 import { SetupFooter } from '../ui/setup/SetupFooter';
 
 interface SetupScreenProps {
+  intensity: IntensityLevel | null;
+  onSelectIntensity: (level: IntensityLevel) => void;
   onStartGame: (
     mode: GameMode,
     intensity: IntensityLevel,
@@ -33,16 +34,20 @@ const intensityLabels: Record<IntensityLevel, string> = {
   extremo: 'Extremo',
 };
 
-export const SetupScreen: React.FC<SetupScreenProps> = ({ onStartGame, isStarting }) => {
-  const [showOnboarding, setShowOnboarding] = useState(true);
+export const SetupScreen: React.FC<SetupScreenProps> = ({
+  intensity,
+  onSelectIntensity,
+  onStartGame,
+  isStarting,
+}) => {
+  const [showOnboarding, setShowOnboarding] = useState(() => !intensity);
   const [mode, setMode] = useState<GameMode | null>(null);
-  const [intensity, setIntensity] = useState<IntensityLevel | null>(null);
   const [players, setPlayers] = useState<Player[]>([
     { id: '1', name: '', boostPoints: 3 },
     { id: '2', name: '', boostPoints: 3 },
   ]);
   const [newPlayerName, setNewPlayerName] = useState('');
-  const [openSection, setOpenSection] = useState<'mode' | 'intensity' | 'players'>('mode');
+  const [openSection, setOpenSection] = useState<'mode' | 'players'>('mode');
   const [isShuffling, setIsShuffling] = useState(false);
   const [shuffleDisplayPlayers, setShuffleDisplayPlayers] = useState<Player[]>([]);
   const [currentShuffleName, setCurrentShuffleName] = useState<string | null>(null);
@@ -70,8 +75,14 @@ export const SetupScreen: React.FC<SetupScreenProps> = ({ onStartGame, isStartin
     };
   }, []);
 
+  useEffect(() => {
+    if (intensity && showOnboarding) {
+      setShowOnboarding(false);
+    }
+  }, [intensity, showOnboarding]);
+
   const handleSelectLevel = (level: IntensityLevel) => {
-    setIntensity(level);
+    onSelectIntensity(level);
     setShowOnboarding(false);
     setOpenSection('mode');
   };
@@ -148,11 +159,6 @@ export const SetupScreen: React.FC<SetupScreenProps> = ({ onStartGame, isStartin
 
   const onSelectMode = (value: GameMode) => {
     setMode(value);
-    setOpenSection('intensity');
-  };
-
-  const onSelectIntensity = (level: IntensityLevel) => {
-    setIntensity(level);
     setOpenSection('players');
   };
 
@@ -260,7 +266,6 @@ export const SetupScreen: React.FC<SetupScreenProps> = ({ onStartGame, isStartin
 
   const canAddMorePlayers = mode !== 'casal' || players.length < 2;
   const intensityLabel = intensity ? intensityLabels[intensity] : undefined;
-  const intensitySummary = intensityLabel || 'Selecione';
   const playersSummary = `${players.length} ${players.length === 1 ? 'jogador' : 'jogadores'}`;
   const canStartNow = Boolean(canStart) && !isStarting && !isShuffling;
 
@@ -273,17 +278,6 @@ export const SetupScreen: React.FC<SetupScreenProps> = ({ onStartGame, isStartin
       content: (
         <div className="space-y-4">
           <SegmentedMode value={mode ?? null} onChange={onSelectMode} />
-        </div>
-      ),
-    },
-    {
-      id: 'intensity' as const,
-      icon: '🔥',
-      label: 'Intensidade',
-      summary: intensitySummary,
-      content: (
-        <div className="space-y-4">
-          <IntensityChips value={intensity ?? undefined} onSelect={onSelectIntensity} />
         </div>
       ),
     },
@@ -316,6 +310,12 @@ export const SetupScreen: React.FC<SetupScreenProps> = ({ onStartGame, isStartin
 
       <main className="overflow-hidden p-4">
         <div className="h-full rounded-card bg-bg-800/80 p-4 backdrop-blur">
+          <div className="mb-4 flex items-center justify-between rounded-card border border-white/15 bg-white/5 px-4 py-3">
+            <span className="text-sm opacity-70">Intensidade</span>
+            <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 font-semibold">
+              {intensity ? intensityLabels[intensity].toUpperCase() : '—'}
+            </span>
+          </div>
           <SetupAccordion
             sections={accordionSections}
             openSection={openSection}
