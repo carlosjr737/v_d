@@ -6,6 +6,7 @@ import { GameScreen } from './components/GameScreen';
 function App() {
   const {
     gameState,
+    setSetupIntensity,
     startGame,
     drawCard,
     forceCard,
@@ -25,7 +26,12 @@ function App() {
       <div className="pointer-events-none absolute inset-0 bg-[var(--texture-noise)] opacity-40 mix-blend-soft-light" aria-hidden="true" />
       <div className="relative z-10 flex min-h-screen flex-col">
         {gameState.phase === 'setup' ? (
-          <SetupScreen onStartGame={startGame} isStarting={isStartingGame} />
+          <SetupScreen
+            intensity={gameState.intensity}
+            onSelectIntensity={setSetupIntensity}
+            onStartGame={startGame}
+            isStarting={isStartingGame}
+          />
         ) : (
           <GameScreen
             gameState={gameState}

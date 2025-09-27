@@ -1,6 +1,6 @@
 import React from 'react';
 
-type SectionId = 'mode' | 'intensity' | 'players';
+type SectionId = 'mode' | 'players';
 
 interface SetupAccordionSection {
   id: SectionId;
