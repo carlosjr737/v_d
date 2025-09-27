@@ -55,7 +55,9 @@ export function ChooseNextCardModal({
   const [formError, setFormError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
   const lastCreatedCardIdRef = useRef<string | null>(null);
+
 
   const chooser = state.players[chooserId];
   const cooldown = state.cooldowns[chooserId]?.choose_next_card ?? 0;
@@ -83,6 +85,7 @@ export function ChooseNextCardModal({
     if (!isOpen) return;
     const reqId = ++reqIdRef.current;
     (async () => {
+
       const maxOptions = optionsShown ?? 3;
       let list = getCandidateCards(state, maxOptions).slice(0, maxOptions);
       const createdId = lastCreatedCardIdRef.current;
@@ -100,11 +103,13 @@ export function ChooseNextCardModal({
         if (createdId && list.some(card => card.id === createdId)) {
           lastCreatedCardIdRef.current = null;
         }
+
       }
     })();
     return () => {
       reqIdRef.current++;
     };
+
   }, [
     isOpen,
     optionsShown,
@@ -113,6 +118,7 @@ export function ChooseNextCardModal({
     state.intensity,
     state.remainingByIntensity[state.intensity]?.length,
   ]);
+
 
   useEffect(() => {
     if (!isOpen) return;
@@ -148,8 +154,10 @@ export function ChooseNextCardModal({
     const card = createCardLocal(state, { type: newCardType, text: trimmed, createdBy: chooserId });
     void dispatch({ type: 'CARD_CREATED_LOCAL', card });
     onCardCreated?.(card);
+
     const maxOptions = optionsShown ?? 3;
     setCandidates(prev => [card, ...prev.filter(c => c.id !== card.id)].slice(0, maxOptions));
+
     setSelectedCardId(card.id);
     lastCreatedCardIdRef.current = card.id;
     setNewCardText('');
