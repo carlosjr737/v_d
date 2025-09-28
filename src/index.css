@@ -1,0 +1,305 @@
+@import './styles/tokens.css';
+@import './styles/animations.css';
+@import './styles/animations.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: var(--font-body);
+    color: var(--color-text);
+    background-color: var(--color-bg-900);
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    min-height: 100vh;
+    height: 100%;
+    margin: 0;
+    background-color: var(--color-bg-900);
+    background-image: var(--grad-overlay), var(--texture-noise);
+    background-attachment: fixed;
+    color: var(--color-text);
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
+    letter-spacing: 0.02em;
+  }
+
+  strong,
+  em,
+  mark {
+    font-family: var(--font-accent);
+    font-style: italic;
+  }
+
+  *,
+  *::before,
+  *::after {
+    --focus-shadow: 0 0 #0000;
+  }
+
+  *:focus-visible {
+    outline: 0;
+    box-shadow: var(--focus-glow), var(--focus-shadow, 0 0 #0000);
+  }
+
+  ::selection {
+    background: rgba(255, 46, 126, 0.35);
+    color: var(--color-text);
+  }
+}
+
+@layer components {
+  .seg-on {
+    @apply h-12 rounded-full border border-transparent bg-[var(--grad-heat)] font-semibold text-white shadow-heat transition;
+  }
+
+  .seg-off {
+    @apply h-12 rounded-full border border-[var(--color-border)] bg-[var(--color-bg-900)] bg-opacity-60 font-semibold text-text-subtle transition;
+  }
+
+  .seg-off:hover {
+    @apply text-text;
+  }
+
+  .chip {
+    @apply h-10 rounded-full border px-4 text-sm font-semibold text-text-subtle transition;
+    border-color: var(--chip-color, var(--color-border));
+    color: var(--chip-color, var(--color-text-2));
+  }
+
+  .chip-on {
+    @apply border-transparent text-white shadow-heat;
+    background: var(--chip-color, var(--grad-heat));
+  }
+}
+
+@layer utilities {
+  @keyframes shufflePulse {
+    0%,
+    100% {
+      opacity: 0.65;
+      transform: scale(0.98);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes cardDrawRise {
+    0% {
+      opacity: 0;
+      transform: translateY(32px) scale(0.92) rotateY(180deg);
+    }
+    60% {
+      opacity: 1;
+      transform: translateY(-8px) scale(1.03) rotateY(180deg);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1) rotateY(180deg);
+    }
+  }
+
+  @keyframes cardPrepPulse {
+    0% {
+      transform: rotateY(0deg) scale(0.97);
+      box-shadow: 0 18px 45px -24px rgba(255, 138, 76, 0.35);
+    }
+    50% {
+      transform: rotateY(0deg) scale(1.02);
+      box-shadow: 0 28px 65px -28px rgba(160, 247, 205, 0.35);
+    }
+    100% {
+      transform: rotateY(0deg) scale(0.97);
+      box-shadow: 0 18px 45px -24px rgba(255, 138, 76, 0.35);
+    }
+  }
+
+  @keyframes cardFlipReveal {
+    0% {
+      transform: rotateY(180deg) translateY(-6px);
+    }
+    100% {
+      transform: rotateY(0deg) translateY(0);
+    }
+  }
+
+  @keyframes spinSlower {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes cardFlip {
+    0% {
+      transform: rotateY(0deg);
+    }
+    50% {
+      transform: rotateY(90deg);
+    }
+    100% {
+      transform: rotateY(180deg);
+    }
+  }
+
+  @keyframes points-float {
+    0% {
+      transform: translateY(0);
+      opacity: 0;
+    }
+    10% {
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(-16px);
+      opacity: 0;
+    }
+  }
+
+  .animate-points-float {
+    animation: points-float 1s ease-out forwards;
+  }
+
+  @keyframes neonPulse {
+    0%,
+    100% {
+      filter: drop-shadow(0 0 0 rgba(255, 46, 126, 0));
+      box-shadow: inset 0 0 0 0 rgba(255, 46, 126, 0);
+    }
+    50% {
+      filter: drop-shadow(0 0 24px rgba(196, 0, 255, 0.4));
+      box-shadow: inset 0 0 14px 0 rgba(255, 46, 126, 0.55);
+    }
+  }
+
+  @keyframes ascendParticles {
+    0% {
+      transform: translate3d(0, 30%, 0) scale(0.85);
+      opacity: 0;
+    }
+    20% {
+      opacity: 0.75;
+    }
+    80% {
+      opacity: 0.6;
+    }
+    100% {
+      transform: translate3d(0, -70%, 0) scale(1.1);
+      opacity: 0;
+    }
+  }
+
+  .animate-shuffle-pulse {
+    animation: shufflePulse 1.8s ease-in-out infinite;
+  }
+
+  .animate-card-draw {
+    animation: cardDrawRise 0.65s cubic-bezier(0.3, 0.8, 0.3, 1) both;
+  }
+
+  .animate-card-prep {
+    animation: cardPrepPulse 1.25s ease-in-out infinite;
+  }
+
+  .animate-card-flip {
+    animation: cardFlipReveal 0.55s cubic-bezier(0.25, 0.75, 0.35, 1) both;
+  }
+
+  .animate-spin-slower {
+    animation: spinSlower 14s linear infinite;
+  }
+
+
+  @keyframes gradientPulse {
+    0%,
+    100% {
+      transform: scale(1);
+      opacity: 0.45;
+    }
+    50% {
+      transform: scale(1.15);
+      opacity: 0.75;
+    }
+  }
+
+  @keyframes noiseFade {
+    0%,
+    100% {
+      opacity: 0.18;
+    }
+    50% {
+      opacity: 0.32;
+    }
+  }
+
+  @keyframes floatSlow {
+    0%,
+    100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-8px);
+    }
+  }
+
+  @keyframes floatSlower {
+    0%,
+    100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(10px);
+    }
+  }
+
+  .animate-gradient-pulse {
+    animation: gradientPulse 18s ease-in-out infinite;
+  }
+
+  .animate-noise-fade {
+    animation: noiseFade 12s ease-in-out infinite;
+  }
+
+  .animate-float-slow {
+    animation: floatSlow 9s ease-in-out infinite;
+  }
+
+  .animate-float-slower {
+    animation: floatSlower 13s ease-in-out infinite;
+
+  }
+
+  .line-clamp-4 {
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .safe-px {
+    padding-left: max(env(safe-area-inset-left), 0px);
+    padding-right: max(env(safe-area-inset-right), 0px);
+  }
+}
