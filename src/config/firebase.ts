@@ -26,6 +26,7 @@ export const FUNCTIONS_BASE_URL = import.meta.env.VITE_FUNCTIONS_BASE_URL as str
 
 export const isEmailLink = () => isSignInWithEmailLink(auth, window.location.href);
 
-export const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents`;
+export const FIRESTORE_BASE_URL =
+  `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents`;
 
 export const CARDS_COLLECTION = 'cards';
