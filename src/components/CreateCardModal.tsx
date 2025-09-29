@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Player, IntensityLevel } from '../types/game';
 import { Zap, X, Plus, Sparkles, Loader2 } from 'lucide-react';
 import { GameCard } from './GameCard';
+import { PremiumGate } from './PremiumGate';
 
 interface CreateCardModalProps {
   currentPlayer: Player;
@@ -37,9 +38,7 @@ export const CreateCardModal: React.FC<CreateCardModalProps> = ({
 
   const canApplyBoost = currentPlayer.boostPoints >= 2;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
+  const submitCard = async () => {
     if (!cardText.trim()) {
       alert('Digite o texto da carta!');
       return;
@@ -99,7 +98,7 @@ export const CreateCardModal: React.FC<CreateCardModalProps> = ({
           </div>
 
           <form
-            onSubmit={handleSubmit}
+            onSubmit={e => e.preventDefault()}
             className="grid gap-6 px-6 py-6 lg:grid-cols-[1.05fr_1fr]"
           >
             <div className="space-y-6">
@@ -277,14 +276,22 @@ export const CreateCardModal: React.FC<CreateCardModalProps> = ({
                 >
                   Cancelar
                 </button>
-                <button
-                  type="submit"
-                  disabled={!cardText.trim() || isSubmitting}
-                  className="flex h-12 items-center justify-center gap-2 rounded-pill bg-grad-heat px-4 text-sm font-semibold uppercase tracking-[0.2em] text-text shadow-heat [--focus-shadow:var(--shadow-heat)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus size={18} />}
-                  {isSubmitting ? 'Criando...' : 'Criar carta'}
-                </button>
+                <PremiumGate>
+                  {(canUse, openPaywall) => (
+                    <button
+                      type="button"
+                      disabled={!cardText.trim() || isSubmitting}
+                      onClick={() => {
+                        if (!cardText.trim() || isSubmitting) return;
+                        return canUse ? submitCard() : openPaywall();
+                      }}
+                      className="flex h-12 items-center justify-center gap-2 rounded-pill bg-grad-heat px-4 text-sm font-semibold uppercase tracking-[0.2em] text-text shadow-heat [--focus-shadow:var(--shadow-heat)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus size={18} />}
+                      {isSubmitting ? 'Criando...' : 'Criar carta'}
+                    </button>
+                  )}
+                </PremiumGate>
               </div>
             </div>
           </form>

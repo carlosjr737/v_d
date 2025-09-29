@@ -5,6 +5,7 @@ import type { PlayerId } from '@/models/players';
 import type { Action } from '@/state/chooseNextCardReducer';
 import { canTarget } from '@/state/chooseNextCardReducer';
 import { createCardLocal, getCandidateCards } from '@/services/cardsService';
+import { PremiumGate } from './PremiumGate';
 import type { CardType } from '@/models/cards';
 
 interface ChooseNextCardModalProps {
@@ -381,33 +382,35 @@ export function ChooseNextCardModal({
           >
             Cancelar
           </button>
-          <button
-            type="button"
-            onClick={handleConfirm}
-            className={`rounded-lg bg-accent-500 px-5 py-2 text-sm font-semibold text-bg-900 transition hover:bg-accent-400 disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/50 ${
-              isSubmitting ? 'opacity-60 cursor-wait' : ''
-            }`}
-            disabled={
-              isSubmitting ||
-              !selectedCardId ||
-              !selectedTarget ||
-              !state.players[selectedTarget] ||
-              !chooser ||
-              chooser.points < 5 ||
-              cooldown > 0
-            }
-            aria-disabled={
-              isSubmitting ||
-              !selectedCardId ||
-              !selectedTarget ||
-              !state.players[selectedTarget] ||
-              !chooser ||
-              chooser.points < 5 ||
-              cooldown > 0
-            }
-          >
-            Confirmar
-          </button>
+          <PremiumGate>
+            {(canUse, openPaywall) => {
+              const isDisabled =
+                isSubmitting ||
+                !selectedCardId ||
+                !selectedTarget ||
+                !state.players[selectedTarget] ||
+                !chooser ||
+                chooser.points < 5 ||
+                cooldown > 0;
+              const handleClick = () => {
+                if (isDisabled) return;
+                return canUse ? handleConfirm() : openPaywall();
+              };
+              return (
+                <button
+                  type="button"
+                  onClick={handleClick}
+                  className={`rounded-lg bg-accent-500 px-5 py-2 text-sm font-semibold text-bg-900 transition hover:bg-accent-400 disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/50 ${
+                    isSubmitting ? 'opacity-60 cursor-wait' : ''
+                  }`}
+                  disabled={isDisabled}
+                  aria-disabled={isDisabled}
+                >
+                  Confirmar
+                </button>
+              );
+            }}
+          </PremiumGate>
         </footer>
       </div>
     </div>
