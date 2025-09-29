@@ -48,8 +48,7 @@ const fetchRemoteCardsForIntensity = async (intensity: Intensity): Promise<Card[
 
   try {
     const remoteCards = await fetchCardsByIntensity(level);
-    const metadata = remoteCards as { [REMOTE_DECK_ERROR_FLAG]?: true };
-    const error = Boolean(metadata[REMOTE_DECK_ERROR_FLAG]);
+    const error = Boolean(remoteCards[REMOTE_DECK_ERROR_FLAG]);
 
     if (error) {
       remoteCache.set(intensity, []);
@@ -105,7 +104,11 @@ export async function getDeck(intensity: Intensity, type: CardType): Promise<str
     Promise.resolve(getLocalSeedByIntensity(intensity, type)),
   ]);
 
-  const merged = [...remote, ...localSeed].map(text => text.trim()).filter(Boolean);
+  const status = getRemoteStatus(intensity);
+  const useFallback = status.error || remote.length === 0;
+
+  const mergedSource = useFallback ? [...localSeed] : [...remote, ...localSeed];
+  const merged = mergedSource.map(text => text.trim()).filter(Boolean);
 
   const seen = new Set<string>();
   const deduped: string[] = [];
@@ -189,9 +192,18 @@ export async function getCardsForType(
   type: CardType
 ): Promise<DeckCardsResult> {
   const intensity = toServiceIntensity(level);
-  const deck = await getDeck(intensity, type);
   const status = getRemoteStatus(intensity);
-  const cards = buildCardsFromDeck(level, type, deck);
+  const deck = await getDeck(intensity, type);
+
+  let cards: Card[];
+  if (status.error || deck.length === 0) {
+    const fallback = seedCards
+      .filter(card => card.level === level && card.type === type)
+      .map(normalizeCard);
+    cards = shuffle(fallback);
+  } else {
+    cards = buildCardsFromDeck(level, type, deck);
+  }
 
   return {
     cards,

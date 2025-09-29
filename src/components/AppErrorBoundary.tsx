@@ -9,7 +9,10 @@ export function AppErrorBoundary({ children }: Props) {
 
   if (error) {
     return (
-      <div className="min-h-dvh grid place-items-center p-6 text-center text-white">
+      <div
+        className="min-h-dvh grid place-items-center p-6 text-center text-white"
+        style={{ background: '#0B0B12' }}
+      >
         <div className="max-w-md space-y-4">
           <h2 className="text-2xl font-semibold">Ops! Algo deu errado.</h2>
           <p className="text-sm opacity-80">
