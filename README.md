@@ -46,3 +46,53 @@ Todos os tokens estão centralizados em [`src/styles/tokens.css`](src/styles/tok
 - Cartas e telas principais possuem uma **barra de nível** (`bg-level-*`) no topo para comunicar a intensidade atual.
 
 Siga estas diretrizes ao criar novas telas, estados ou componentes. Qualquer cor ou efeito adicional deve ser derivado dos tokens acima para preservar a coerência da marca.
+
+## Configuração do Stripe
+
+### 1. Criar Produtos no Stripe Dashboard
+
+Acesse o [Stripe Dashboard](https://dashboard.stripe.com/products) e crie:
+
+**Produto: "Verdade ou Consequência Premium"**
+- Plano Mensal: R$ 49,90/mês
+- Plano Anual: R$ 299,90/ano (50% de desconto)
+
+### 2. Configurar Variáveis de Ambiente
+
+No Firebase Functions, configure as seguintes variáveis:
+
+```bash
+# Chaves do Stripe
+firebase functions:config:set stripe.secret_key="sk_live_..." 
+firebase functions:config:set stripe.monthly_price_id="price_..." 
+firebase functions:config:set stripe.annual_price_id="price_..."
+firebase functions:config:set stripe.webhook_secret="whsec_..."
+
+# URLs de redirecionamento
+firebase functions:config:set app.success_url="https://seu-dominio.com/checkout/success"
+firebase functions:config:set app.cancel_url="https://seu-dominio.com/checkout/cancel"
+```
+
+### 3. Configurar Webhook no Stripe
+
+1. Acesse [Stripe Webhooks](https://dashboard.stripe.com/webhooks)
+2. Adicione endpoint: `https://sua-regiao-seu-projeto.cloudfunctions.net/stripeWebhook`
+3. Selecione eventos:
+   - `checkout.session.completed`
+   - `invoice.paid`
+   - `customer.subscription.updated`
+   - `customer.subscription.deleted`
+
+### 4. Testar Pagamentos
+
+Use os cartões de teste do Stripe:
+- **Sucesso**: 4242 4242 4242 4242
+- **Falha**: 4000 0000 0000 0002
+- **3D Secure**: 4000 0025 0000 3155
+
+### 5. Deploy das Functions
+
+```bash
+cd functions
+npm run deploy
+```
