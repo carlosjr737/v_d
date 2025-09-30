@@ -54,8 +54,8 @@ export function useEntitlement() {
     return 'link_sent' as const;
   };
 
-  const openCheckout = async (promoCode?: string) => {
-    const { url } = await createCheckoutSession(promoCode);
+  const openCheckout = async (promoCode?: string, plan: 'monthly' | 'annual' = 'monthly') => {
+    const { url } = await createCheckoutSession(promoCode, plan);
     window.location.href = url;
   };
 

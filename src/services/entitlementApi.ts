@@ -14,8 +14,8 @@ async function authFetch(path: string, init?: RequestInit) {
   return res.json();
 }
 
-export async function createCheckoutSession(promoCode?: string) {
-  const body = promoCode ? JSON.stringify({ promoCode }) : '{}';
+export async function createCheckoutSession(promoCode?: string, plan: 'monthly' | 'annual' = 'monthly') {
+  const body = JSON.stringify({ promoCode, plan });
   return authFetch('/createCheckoutSession', { method: 'POST', body });
 }
 

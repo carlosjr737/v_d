@@ -6,6 +6,7 @@ type Props = { isOpen: boolean; onClose: () => void; promoCode?: string };
 export function PaywallModal({ isOpen, onClose, promoCode }: Props) {
   const { loginGoogle, loginApple, loginEmailLink, openCheckout } = useEntitlement();
   const [email, setEmail] = useState('');
+  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
   const [step, setStep] = useState<'auth' | 'loading' | 'error'>('auth');
   const [err, setErr] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
@@ -48,9 +49,47 @@ export function PaywallModal({ isOpen, onClose, promoCode }: Props) {
       <div className="w-full max-w-md rounded-2xl bg-bg-800 p-6">
         <h2 className="text-xl font-semibold text-white">Libere as Ações Especiais por 1 ano</h2>
         <p className="mt-1 text-sm text-white/70">Crie cartas personalizadas, escolha o destino e desbloqueie animações exclusivas.</p>
-        <div className="my-4 rounded-lg bg-bg-900 p-3 text-sm">
-          <div>
-            <del>R$ 59,90</del> <strong>R$ 29,90</strong> (promo de lançamento)
+        
+        {/* Seletor de Planos */}
+        <div className="my-4 space-y-3">
+          <div className="text-sm font-semibold text-white">Escolha seu plano:</div>
+          
+          <div className="grid gap-2">
+            <button
+              onClick={() => setSelectedPlan('annual')}
+              className={`rounded-lg border p-3 text-left transition ${
+                selectedPlan === 'annual'
+                  ? 'border-accent-500 bg-accent-500/10'
+                  : 'border-white/20 bg-bg-900/50'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-semibold text-white">Anual</div>
+                  <div className="text-sm text-white/70">R$ 299,90/ano</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs text-accent-400 font-semibold">ECONOMIZE 50%</div>
+                  <div className="text-xs text-white/60">~R$ 25/mês</div>
+                </div>
+              </div>
+            </button>
+            
+            <button
+              onClick={() => setSelectedPlan('monthly')}
+              className={`rounded-lg border p-3 text-left transition ${
+                selectedPlan === 'monthly'
+                  ? 'border-accent-500 bg-accent-500/10'
+                  : 'border-white/20 bg-bg-900/50'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-semibold text-white">Mensal</div>
+                  <div className="text-sm text-white/70">R$ 49,90/mês</div>
+                </div>
+              </div>
+            </button>
           </div>
         </div>
 
@@ -76,7 +115,7 @@ export function PaywallModal({ isOpen, onClose, promoCode }: Props) {
               </button>
             </div>
             <button className="mt-4 w-full rounded-xl bg-gradient-to-r from-pink-500 to-orange-400 py-2" onClick={doCheckout}>
-              Já tenho conta — Ir para o pagamento
+              {selectedPlan === 'annual' ? 'Assinar Anual (R$ 299,90)' : 'Assinar Mensal (R$ 49,90)'}
             </button>
             <button className="mt-2 w-full text-sm text-white/60" onClick={onClose}>
               Continuar grátis

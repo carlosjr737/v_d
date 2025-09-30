@@ -8,7 +8,8 @@ admin.initializeApp();
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, { apiVersion: '2024-06-20' });
 
-const PRICE_ID = process.env.STRIPE_PRICE_ID as string;
+const MONTHLY_PRICE_ID = process.env.STRIPE_MONTHLY_PRICE_ID as string;
+const ANNUAL_PRICE_ID = process.env.STRIPE_ANNUAL_PRICE_ID as string;
 const SUCCESS_URL = process.env.SUCCESS_URL as string;
 const CANCEL_URL = process.env.CANCEL_URL as string;
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET as string;
@@ -28,7 +29,7 @@ export const createCheckoutSession = functions.region('southamerica-east1').http
     try {
       if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
       const uid = await verifyAuth(req);
-      const { promoCode } = (req.body || {}) as { promoCode?: string };
+      const { promoCode, plan = 'monthly' } = (req.body || {}) as { promoCode?: string; plan?: 'monthly' | 'annual' };
 
       const userRef = admin.firestore().doc(`users/${uid}`);
       const userSnap = await userRef.get();
@@ -43,13 +44,15 @@ export const createCheckoutSession = functions.region('southamerica-east1').http
         await admin.firestore().doc(`stripeCustomers/${customerId}`).set({ uid }, { merge: true });
       }
 
+      const priceId = plan === 'annual' ? ANNUAL_PRICE_ID : MONTHLY_PRICE_ID;
+
       const params: Stripe.Checkout.SessionCreateParams = {
         mode: 'subscription',
         customer: customerId,
         client_reference_id: uid,
         success_url: SUCCESS_URL + '?session_id={CHECKOUT_SESSION_ID}',
         cancel_url: CANCEL_URL,
-        line_items: [{ price: PRICE_ID, quantity: 1 }],
+        line_items: [{ price: priceId, quantity: 1 }],
         allow_promotion_codes: true,
         payment_method_types: ['card', 'boleto'],
       };
