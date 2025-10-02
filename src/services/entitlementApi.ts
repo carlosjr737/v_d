@@ -1,8 +1,27 @@
-import { auth } from '@/config/firebase';
+import { auth, firebaseConfig } from '@/config/firebase';
 
-const base = import.meta.env.VITE_FUNCTIONS_BASE_URL as string;
+function inferFunctionsBaseUrl() {
+  const envBase = (import.meta.env.VITE_FUNCTIONS_BASE_URL as string | undefined)?.trim();
+  if (envBase) return envBase.replace(/\/$/, '');
+
+  const projectId = firebaseConfig.projectId;
+  if (!projectId) return '';
+
+  if (import.meta.env.DEV) {
+    return `http://localhost:5001/${projectId}/southamerica-east1`;
+  }
+
+  return `https://southamerica-east1-${projectId}.cloudfunctions.net`;
+}
+
+const base = inferFunctionsBaseUrl();
 
 async function authFetch(path: string, init?: RequestInit) {
+  if (!base) {
+    throw new Error(
+      'URL das Cloud Functions não configurada. Defina VITE_FUNCTIONS_BASE_URL ou configure VITE_FIREBASE_PROJECT_ID corretamente.'
+    );
+  }
   const user = auth.currentUser;
   if (!user) throw new Error('not_authenticated');
   const token = await user.getIdToken();
