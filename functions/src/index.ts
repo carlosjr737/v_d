@@ -14,7 +14,16 @@ const SUCCESS_URL = process.env.SUCCESS_URL as string;
 const CANCEL_URL = process.env.CANCEL_URL as string;
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET as string;
 
-const CORS = cors({ origin: true });
+const CORS = cors({ 
+  origin: [
+    'http://localhost:5173',
+    'https://localhost:5173',
+    'https://carlosjr737-v-d-impo-20p9.bolt.host',
+    /\.bolt\.host$/,
+    /\.netlify\.app$/
+  ],
+  credentials: true
+});
 
 async function verifyAuth(req: Request): Promise<string> {
   const authHeader = req.headers.authorization || '';
