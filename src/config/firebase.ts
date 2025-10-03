@@ -7,23 +7,40 @@ import {
 } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
-function requireEnv(name: string): string {
-  const v = (import.meta as any).env?.[name];
-  if (!v) {
-    // Log explícito e mantém app vivo
-    // Obs.: não lançamos exceção aqui para evitar “tela preta” por erro síncrono.
-    console.error(`[ENV MISSING] ${name} não definido. Configure as variáveis VITE_* no ambiente de produção.`);
-    return '';
+const FALLBACK_FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyD6k5hRvxPpAp-k3Hhoifyt4LPp1E5Zo1Q',
+  authDomain: 'verdadeconsequencia.firebaseapp.com',
+  projectId: 'verdadeconsequencia',
+  appId: '1:704487870593:web:f49d0203223fcf7abe7d80',
+  storageBucket: 'verdadeconsequencia.firebasestorage.app',
+} as const;
+
+function requireEnv(name: string, fallbackKey: keyof typeof FALLBACK_FIREBASE_CONFIG | null = null): string {
+  const raw = (import.meta as any).env?.[name];
+  if (typeof raw === 'string' && raw.trim()) {
+    return raw;
   }
-  return v as string;
+
+  if (fallbackKey) {
+    const fallback = FALLBACK_FIREBASE_CONFIG[fallbackKey];
+    if (fallback) {
+      console.warn(
+        `[ENV MISSING] ${name} não definido. Usando fallback embutido para evitar quebra em desenvolvimento.`
+      );
+      return fallback;
+    }
+  }
+
+  console.error(`[ENV MISSING] ${name} não definido. Configure as variáveis VITE_* no ambiente de produção.`);
+  return '';
 }
 
 export const firebaseConfig = {
-  apiKey: requireEnv('VITE_FIREBASE_API_KEY'),
-  authDomain: requireEnv('VITE_FIREBASE_AUTH_DOMAIN'),
-  projectId: requireEnv('VITE_FIREBASE_PROJECT_ID'),
-  appId: requireEnv('VITE_FIREBASE_APP_ID'),
-  storageBucket: requireEnv('VITE_FIREBASE_STORAGE_BUCKET'),
+  apiKey: requireEnv('VITE_FIREBASE_API_KEY', 'apiKey'),
+  authDomain: requireEnv('VITE_FIREBASE_AUTH_DOMAIN', 'authDomain'),
+  projectId: requireEnv('VITE_FIREBASE_PROJECT_ID', 'projectId'),
+  appId: requireEnv('VITE_FIREBASE_APP_ID', 'appId'),
+  storageBucket: requireEnv('VITE_FIREBASE_STORAGE_BUCKET', 'storageBucket'),
 } as const;
 
 // Evita crash se env estiver faltando: só inicializa quando temos o mínimo
@@ -50,7 +67,7 @@ export const db = app ? getFirestore(app) : (null as any);
 export const googleProvider = new GoogleAuthProvider();
 export const appleProvider = new OAuthProvider('apple.com');
 
-export const FUNCTIONS_BASE_URL = requireEnv('VITE_FUNCTIONS_BASE_URL');
+export const FUNCTIONS_BASE_URL = requireEnv('VITE_FUNCTIONS_BASE_URL', null);
 
 export const isEmailLink = () => typeof window !== 'undefined' && isSignInWithEmailLink(auth, window.location.href);
 

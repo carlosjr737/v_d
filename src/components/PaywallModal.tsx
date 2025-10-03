@@ -17,7 +17,7 @@ export function PaywallModal({ isOpen, onClose, promoCode }: Props) {
     try {
       setStep('loading');
       setInfo(null);
-      await openCheckout(promoCode);
+      await openCheckout(promoCode, selectedPlan);
     } catch (e: any) {
       setErr(e?.message || 'Falha ao abrir o checkout');
       setInfo(null);
