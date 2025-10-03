@@ -3,6 +3,7 @@ import { onRequest } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { initializeApp } from "firebase-admin/app";
 import { getAuth, type DecodedIdToken } from "firebase-admin/auth";
+import Stripe from "stripe";
 
 initializeApp();
 
@@ -53,6 +54,34 @@ async function verifyBearer(req: ReqLite): Promise<DecodedIdToken> {
 type Plan = "annual" | "monthly";
 interface CreateCheckoutBody {
   plan: Plan;
+  promoCode?: string;
+}
+
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+const stripeClient = stripeSecretKey
+  ? new Stripe(stripeSecretKey, { apiVersion: "2024-06-20" })
+  : null;
+
+const STRIPE_PRICE_IDS: Record<Plan, string | undefined> = {
+  monthly: process.env.STRIPE_MONTHLY_PRICE_ID,
+  annual: process.env.STRIPE_ANNUAL_PRICE_ID,
+};
+
+const SUCCESS_URL = process.env.APP_SUCCESS_URL;
+const CANCEL_URL = process.env.APP_CANCEL_URL;
+
+function resolveStripeConfig(plan: Plan): { stripe: Stripe; priceId: string } {
+  if (!stripeClient) {
+    throw new Error("stripe-secret-key-missing");
+  }
+  const priceId = STRIPE_PRICE_IDS[plan];
+  if (!priceId) {
+    throw new Error(`stripe-price-id-missing:${plan}`);
+  }
+  if (!SUCCESS_URL || !CANCEL_URL) {
+    throw new Error("checkout-redirect-url-missing");
+  }
+  return { stripe: stripeClient, priceId };
 }
 
 /** GET/POST protegido para teste de autenticação */
@@ -101,8 +130,48 @@ export const createCheckoutSession = onRequest(
         return;
       }
 
-      // TODO: integrar Stripe aqui
-      res.json({ ok: true, plan: body.plan });
+      const { stripe, priceId } = resolveStripeConfig(body.plan);
+      const promoCode =
+        typeof body.promoCode === "string" && body.promoCode.trim().length > 0
+          ? body.promoCode.trim()
+          : undefined;
+
+      const session = await stripe.checkout.sessions.create({
+        mode: "subscription",
+        line_items: [
+          {
+            price: priceId,
+            quantity: 1,
+          },
+        ],
+        success_url: SUCCESS_URL,
+        cancel_url: CANCEL_URL,
+        metadata: {
+          uid: decoded.uid,
+          plan: body.plan,
+        },
+        subscription_data: {
+          metadata: {
+            uid: decoded.uid,
+            plan: body.plan,
+          },
+        },
+        allow_promotion_codes: true,
+        discounts: promoCode
+          ? [
+              {
+                promotion_code: promoCode,
+              },
+            ]
+          : undefined,
+        customer_email: decoded.email ?? undefined,
+      });
+
+      if (!session.url) {
+        throw new Error("stripe-session-missing-url");
+      }
+
+      res.json({ url: session.url, id: session.id, plan: body.plan });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "error";
       logger.error("createCheckoutSession error", msg);
