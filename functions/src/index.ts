@@ -3,6 +3,7 @@ import { onRequest } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { initializeApp } from "firebase-admin/app";
 import { getAuth, type DecodedIdToken } from "firebase-admin/auth";
+
 import { getFirestore } from "firebase-admin/firestore";
 import Stripe from "stripe";
 
@@ -15,19 +16,23 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
 });
 
 // ===== Tipos “lite” =====
+
 type ReqLite = {
   method: string;
   headers: {
     origin?: unknown;
     authorization?: unknown;
+
     "stripe-signature"?: unknown; // webhook
   };
   body?: unknown;
   rawBody?: Buffer; // necessário para webhook
+
 };
 type ResLite = {
   setHeader(name: string, value: string): void;
   status(code: number): ResLite;
+
   send(body?: string): void;
   json(body: unknown): void;
 };
@@ -37,6 +42,7 @@ const ALLOWED_ORIGINS = new Set<string>([
   "https://v-d-sigma.vercel.app",
   "http://localhost:5173",
   // adicione aqui outros domínios (produção e previews) quando precisar
+
 ]);
 
 function applyCors(req: ReqLite, res: ResLite): void {
@@ -50,6 +56,7 @@ function applyCors(req: ReqLite, res: ResLite): void {
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   res.setHeader(
     "Access-Control-Allow-Headers",
+
     "Content-Type, Authorization, X-Firebase-AppCheck, Stripe-Signature"
   );
 }
@@ -170,10 +177,12 @@ export const createCheckoutSession = onRequest(
     } catch (e) {
       const msg = e instanceof Error ? e.message : "error";
       logger.error("createCheckoutSession error", msg);
+
       res.status(msg === "missing-token" ? 401 : 400).json({ error: msg });
     }
   }
 );
+
 
 /** Webhook Stripe (não usa CORS/bearer; precisa do rawBody) */
 export const stripeWebhook = onRequest(
@@ -283,6 +292,7 @@ export const stripeWebhook = onRequest(
     } catch (err) {
       logger.error("stripeWebhook error", err);
       res.status(400).send(`Webhook Error: ${(err as Error).message}`);
+
     }
   }
 );
