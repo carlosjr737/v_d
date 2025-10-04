@@ -24,3 +24,7 @@ build-test
 *.sln
 *.sw?
 .env
+
+# Segurança
+functions/.env*
+
