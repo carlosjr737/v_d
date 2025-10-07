@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "default": "verdadeconsequencia",
+    "prod": "verdadeconsequencia"
+  },
+  "targets": {},
+  "etags": {}
+}
