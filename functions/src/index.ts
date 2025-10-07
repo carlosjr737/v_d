@@ -6,6 +6,18 @@ import { getAuth, type DecodedIdToken } from "firebase-admin/auth";
 
 import { getFirestore } from "firebase-admin/firestore";
 import Stripe from "stripe";
+import { setGlobalOptions } from "firebase-functions/v2";
+setGlobalOptions({
+  region: "southamerica-east1",
+  secrets: [
+    "STRIPE_SECRET_KEY",
+    "STRIPE_PRICE_ID_ANNUAL",
+    "STRIPE_PRICE_ID_MONTHLY",
+    "STRIPE_SUCCESS_URL",
+    "STRIPE_CANCEL_URL",
+    "STRIPE_WEBHOOK_SECRET",
+  ],
+});
 
 initializeApp();
 const db = getFirestore();

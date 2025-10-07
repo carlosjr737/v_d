@@ -1,9 +1,15 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import App from './App.tsx';
 import './index.css';
 import '@/styles/animations.css';
+
+import App from './App.tsx';
 import { AppErrorBoundary } from '@/components/AppErrorBoundary';
+
+// ⬇️ NEW: React Router
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import CheckoutSuccess from '@/routes/CheckoutSuccess';
+import CheckoutCancel from '@/routes/CheckoutCancel';
 
 function attachGlobalErrorBanner() {
   const add = (msg: string) => {
@@ -21,7 +27,7 @@ function attachGlobalErrorBanner() {
     }
     el.textContent = `Erro de execução: ${msg}`;
   };
-  window.addEventListener('error', (e) => add(e?.error?.message || e?.message || 'erro desconhecido'));
+  window.addEventListener('error', (e) => add((e as any)?.error?.message || (e as any)?.message || 'erro desconhecido'));
   window.addEventListener('unhandledrejection', (e: any) => {
     const reason = e?.reason?.message || String(e?.reason || 'unhandledrejection');
     add(reason);
@@ -29,10 +35,17 @@ function attachGlobalErrorBanner() {
 }
 attachGlobalErrorBanner();
 
+// ⬇️ NEW: rotas do app
+const router = createBrowserRouter([
+  { path: '/', element: <App /> },
+  { path: '/pay/success', element: <CheckoutSuccess /> },
+  { path: '/pay/cancel', element: <CheckoutCancel /> },
+]);
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AppErrorBoundary>
-      <App />
+      <RouterProvider router={router} />
     </AppErrorBoundary>
   </StrictMode>
 );
