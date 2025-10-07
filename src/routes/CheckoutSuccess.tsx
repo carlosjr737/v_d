@@ -1,28 +1,26 @@
 import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useEntitlement } from '@/hooks/useEntitlement';
+import { getAuth } from 'firebase/auth';
+import { refreshEntitlementRequest } from '@/services/entitlementApi';
 
 export default function CheckoutSuccess() {
-  const { refresh } = useEntitlement();
   const [params] = useSearchParams();
   const navigate = useNavigate();
 
   useEffect(() => {
-    // opcional: ler session_id se quiser auditar/logar
-    const sid = params.get('session_id');
-    console.debug('Stripe session_id:', sid);
-
     (async () => {
       try {
-        await refresh();      // bate no backend e marca premium
-        navigate('/');        // volta para o jogo
+        console.debug('Stripe session_id:', params.get('session_id'));
+        const token = await getAuth().currentUser?.getIdToken();
+        if (!token) throw new Error('no-auth');
+        await refreshEntitlementRequest(token);
+        navigate('/');
       } catch (e) {
         console.error(e);
-        // mesmo com erro, não deixe o usuário preso aqui
         navigate('/');
       }
     })();
-  }, [params, refresh, navigate]);
+  }, [params, navigate]);
 
   return (
     <div className="p-6 text-white">

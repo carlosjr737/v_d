@@ -156,6 +156,7 @@ export const createCheckoutSession = onRequest(async (req, res) => {
       await userRef.set({ stripeCustomerId: customerId }, { merge: true });
     }
 
+
     const successUrl = process.env.STRIPE_SUCCESS_URL as string;
     const cancelUrl = process.env.STRIPE_CANCEL_URL as string;
     if (!successUrl || !cancelUrl) {
