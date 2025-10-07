@@ -90,3 +90,21 @@ export async function checkEntitlement() {
     { method: 'GET' }
   );
 }
+
+export async function refreshEntitlementRequest(idToken: string) {
+  if (!base) {
+    throw new Error(
+      'URL das Cloud Functions não configurada. Defina VITE_FUNCTIONS_BASE_URL ou configure VITE_FIREBASE_PROJECT_ID corretamente.'
+    );
+  }
+
+  const r = await fetch(`${base}/refreshEntitlement`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+      'Content-Type': 'application/json',
+    },
+  });
+  if (!r.ok) throw new Error(`refresh failed ${r.status}`);
+  return r.json();
+}
