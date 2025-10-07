@@ -36,28 +36,43 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.stripeWebhook = exports.createCheckoutSession = exports.checkEntitlement = void 0;
+exports.refreshEntitlement = exports.stripeWebhook = exports.createCheckoutSession = exports.checkEntitlement = void 0;
 // functions/src/index.ts
 const https_1 = require("firebase-functions/v2/https");
+const v2_1 = require("firebase-functions/v2");
 const logger = __importStar(require("firebase-functions/logger"));
 const app_1 = require("firebase-admin/app");
 const auth_1 = require("firebase-admin/auth");
 const firestore_1 = require("firebase-admin/firestore");
 const stripe_1 = __importDefault(require("stripe"));
+// -------------------------------------------------------
+// Opções globais (região + secrets para TODAS as functions)
+// -------------------------------------------------------
+(0, v2_1.setGlobalOptions)({
+    region: "southamerica-east1",
+    secrets: [
+        "STRIPE_SECRET_KEY",
+        "STRIPE_PRICE_ID_ANNUAL",
+        "STRIPE_PRICE_ID_MONTHLY",
+        "STRIPE_SUCCESS_URL",
+        "STRIPE_CANCEL_URL",
+        "STRIPE_WEBHOOK_SECRET",
+    ],
+});
+// -------------------------------------------------------
+// Firebase Admin / Firestore / Stripe
+// -------------------------------------------------------
 (0, app_1.initializeApp)();
 const db = (0, firestore_1.getFirestore)();
-// ===== Stripe =====
 const stripe = new stripe_1.default(process.env.STRIPE_SECRET_KEY, {
     apiVersion: "2024-06-20",
 });
-// ===== CORS =====
 const ALLOWED_ORIGINS = new Set([
     "https://v-d-sigma.vercel.app",
     "http://localhost:5173",
-    // adicione aqui outros domínios (produção e previews) quando precisar
 ]);
 function applyCors(req, res) {
-    const originHeader = req.headers.origin;
+    const originHeader = req.headers["origin"];
     const origin = typeof originHeader === "string" ? originHeader : "";
     if (ALLOWED_ORIGINS.has(origin)) {
         res.setHeader("Access-Control-Allow-Origin", origin);
@@ -67,17 +82,18 @@ function applyCors(req, res) {
     res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Firebase-AppCheck, Stripe-Signature");
 }
-// ===== Auth Bearer =====
 async function verifyBearer(req) {
-    const authHeader = req.headers.authorization;
+    const authHeader = req.headers["authorization"];
     const hdr = typeof authHeader === "string" ? authHeader : "";
     const token = hdr.startsWith("Bearer ") ? hdr.slice(7) : null;
     if (!token)
         throw new Error("missing-token");
     return (0, auth_1.getAuth)().verifyIdToken(token);
 }
-/** GET protegido de exemplo (mantido) */
-exports.checkEntitlement = (0, https_1.onRequest)({ region: "southamerica-east1" }, async (req, res) => {
+// -------------------------------------------------------
+// GET protegido – retorna { active } (o que o front espera)
+// -------------------------------------------------------
+exports.checkEntitlement = (0, https_1.onRequest)(async (req, res) => {
     applyCors(req, res);
     if (req.method === "OPTIONS") {
         res.status(204).send("");
@@ -85,9 +101,10 @@ exports.checkEntitlement = (0, https_1.onRequest)({ region: "southamerica-east1"
     }
     try {
         const decoded = await verifyBearer(req);
-        logger.info("checkEntitlement", { uid: decoded.uid });
-        // TODO: lógica real (sincronizar com Stripe/Firestore se quiser)
-        res.json({ entitled: true });
+        const uid = decoded.uid;
+        const snap = await db.collection("users").doc(uid).get();
+        const active = !!(snap.exists && snap.data()?.entitlement?.active);
+        res.json({ active });
     }
     catch (e) {
         const msg = e instanceof Error ? e.message : "error";
@@ -95,8 +112,10 @@ exports.checkEntitlement = (0, https_1.onRequest)({ region: "southamerica-east1"
         res.status(msg === "missing-token" ? 401 : 400).json({ error: msg });
     }
 });
-/** POST para criar sessão de Checkout (Stripe) */
-exports.createCheckoutSession = (0, https_1.onRequest)({ region: "southamerica-east1" }, async (req, res) => {
+// -------------------------------------------------------
+// POST – cria sessão do Stripe Checkout
+// -------------------------------------------------------
+exports.createCheckoutSession = (0, https_1.onRequest)(async (req, res) => {
     applyCors(req, res);
     if (req.method === "OPTIONS") {
         res.status(204).send("");
@@ -108,14 +127,10 @@ exports.createCheckoutSession = (0, https_1.onRequest)({ region: "southamerica-e
             return;
         }
         const decoded = await verifyBearer(req);
-        logger.info("createCheckoutSession", { uid: decoded.uid });
+        const uid = decoded.uid;
+        const email = decoded.email ?? undefined;
         const body = (req.body ?? {});
         const plan = body.plan ?? "monthly";
-        if (plan !== "annual" && plan !== "monthly") {
-            res.status(400).json({ error: "plan-required" });
-            return;
-        }
-        // mapear plano -> priceId (via env)
         const priceId = plan === "annual"
             ? process.env.STRIPE_PRICE_ID_ANNUAL
             : process.env.STRIPE_PRICE_ID_MONTHLY;
@@ -123,12 +138,12 @@ exports.createCheckoutSession = (0, https_1.onRequest)({ region: "southamerica-e
             res.status(500).json({ error: "missing-price-id" });
             return;
         }
-        // customer vinculado ao usuário Firebase
-        const uid = decoded.uid;
-        const email = decoded.email ?? undefined;
+        // customer por usuário
         const userRef = db.collection("users").doc(uid);
         const snap = await userRef.get();
-        let customerId = (snap.exists ? snap.data()?.stripeCustomerId : undefined);
+        let customerId = (snap.exists
+            ? snap.data()?.stripeCustomerId
+            : undefined);
         if (!customerId) {
             const customer = await stripe.customers.create({
                 email,
@@ -137,8 +152,8 @@ exports.createCheckoutSession = (0, https_1.onRequest)({ region: "southamerica-e
             customerId = customer.id;
             await userRef.set({ stripeCustomerId: customerId }, { merge: true });
         }
-        const successUrl = process.env.STRIPE_SUCCESS_URL || "";
-        const cancelUrl = process.env.STRIPE_CANCEL_URL || "";
+        const successUrl = process.env.STRIPE_SUCCESS_URL;
+        const cancelUrl = process.env.STRIPE_CANCEL_URL;
         if (!successUrl || !cancelUrl) {
             res.status(500).json({ error: "missing-success-or-cancel-url" });
             return;
@@ -148,9 +163,9 @@ exports.createCheckoutSession = (0, https_1.onRequest)({ region: "southamerica-e
             customer: customerId,
             line_items: [{ price: priceId, quantity: 1 }],
             allow_promotion_codes: true,
-            payment_method_types: ["card", "boleto"], // BR: cartão + boleto (habilite no Dashboard)
+            payment_method_types: ["card", "boleto"],
             locale: "pt-BR",
-            success_url: successUrl,
+            success_url: successUrl, // {CHECKOUT_SESSION_ID} será substituído pelo Stripe
             cancel_url: cancelUrl,
             metadata: { firebaseUID: uid, plan },
             subscription_data: { metadata: { firebaseUID: uid, plan } },
@@ -163,8 +178,10 @@ exports.createCheckoutSession = (0, https_1.onRequest)({ region: "southamerica-e
         res.status(msg === "missing-token" ? 401 : 400).json({ error: msg });
     }
 });
-/** Webhook Stripe (não usa CORS/bearer; precisa do rawBody) */
-exports.stripeWebhook = (0, https_1.onRequest)({ region: "southamerica-east1" }, async (req, res) => {
+// -------------------------------------------------------
+// POST – Webhook do Stripe (sincroniza Firestore)
+// -------------------------------------------------------
+exports.stripeWebhook = (0, https_1.onRequest)(async (req, res) => {
     try {
         const sig = req.headers["stripe-signature"] || "";
         const whSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -179,7 +196,7 @@ exports.stripeWebhook = (0, https_1.onRequest)({ region: "southamerica-east1" },
                         entitlement: {
                             active: true,
                             plan,
-                            currentPeriodEnd: null, // atualiza no evento de subscription
+                            currentPeriodEnd: null,
                             subscriptionId: null,
                         },
                     }, { merge: true });
@@ -190,25 +207,17 @@ exports.stripeWebhook = (0, https_1.onRequest)({ region: "southamerica-east1" },
             case "customer.subscription.updated":
             case "customer.subscription.deleted": {
                 const sub = event.data.object;
-                // ======= FIX DO UID (sem acessar .metadata de DeletedCustomer) =======
+                // recuperar uid
                 let uid = null;
-                // 1) Tenta via metadata da própria subscription
                 if (sub.metadata && sub.metadata.firebaseUID) {
                     uid = sub.metadata.firebaseUID;
                 }
                 else {
-                    // 2) Se não veio, tenta via customer (string ou expandido)
                     let customerId = null;
-                    if (typeof sub.customer === "string") {
+                    if (typeof sub.customer === "string")
                         customerId = sub.customer;
-                    }
-                    else {
-                        // sub.customer é Customer | DeletedCustomer
-                        const custObj = sub.customer;
-                        if (!("deleted" in custObj) || !custObj.deleted) {
-                            // só usa se NÃO for DeletedCustomer
-                            customerId = custObj.id;
-                        }
+                    else if (!("deleted" in sub.customer) || !sub.customer.deleted) {
+                        customerId = sub.customer.id;
                     }
                     if (customerId) {
                         try {
@@ -218,14 +227,13 @@ exports.stripeWebhook = (0, https_1.onRequest)({ region: "southamerica-east1" },
                             }
                         }
                         catch (err) {
-                            logger.warn("stripeWebhook: falha ao recuperar customer", {
+                            logger.warn("stripeWebhook: retrieve customer failed", {
                                 customerId,
                                 err: err?.message,
                             });
                         }
                     }
                 }
-                // ======= /FIX DO UID =======
                 const active = ["active", "trialing", "past_due"].includes(sub.status);
                 const plan = sub.items.data[0]?.price?.id === process.env.STRIPE_PRICE_ID_ANNUAL
                     ? "annual"
@@ -243,7 +251,7 @@ exports.stripeWebhook = (0, https_1.onRequest)({ region: "southamerica-east1" },
                 break;
             }
             default:
-                // ignore outros eventos
+                // ignore
                 break;
         }
         res.json({ received: true });
@@ -251,5 +259,63 @@ exports.stripeWebhook = (0, https_1.onRequest)({ region: "southamerica-east1" },
     catch (err) {
         logger.error("stripeWebhook error", err);
         res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+});
+// -------------------------------------------------------
+// POST – Refresh imediato (chamado em /pay/success)
+// -------------------------------------------------------
+exports.refreshEntitlement = (0, https_1.onRequest)(async (req, res) => {
+    applyCors(req, res);
+    if (req.method === "OPTIONS") {
+        res.status(204).send("");
+        return;
+    }
+    try {
+        if (req.method !== "POST") {
+            res.status(405).json({ error: "method-not-allowed" });
+            return;
+        }
+        const decoded = await verifyBearer(req);
+        const uid = decoded.uid;
+        const userRef = db.collection("users").doc(uid);
+        const snap = await userRef.get();
+        const customerId = (snap.exists
+            ? snap.data()?.stripeCustomerId
+            : undefined);
+        if (!customerId) {
+            await userRef.set({
+                entitlement: {
+                    active: false,
+                    plan: null,
+                    currentPeriodEnd: null,
+                    subscriptionId: null,
+                },
+            }, { merge: true });
+            res.json({ entitled: false, reason: "no-customer" });
+            return;
+        }
+        const subs = await stripe.subscriptions.list({
+            customer: customerId,
+            status: "all",
+            expand: ["data.items"],
+        });
+        const sub = subs.data.find((s) => ["active", "trialing", "past_due"].includes(s.status)) ||
+            null;
+        const active = !!sub;
+        const priceId = sub?.items.data[0]?.price?.id;
+        const plan = priceId === process.env.STRIPE_PRICE_ID_ANNUAL
+            ? "annual"
+            : priceId
+                ? "monthly"
+                : null;
+        const currentPeriodEnd = sub?.current_period_end ?? null;
+        const subscriptionId = sub?.id ?? null;
+        await userRef.set({ entitlement: { active, plan, currentPeriodEnd, subscriptionId } }, { merge: true });
+        res.json({ entitled: active, plan, currentPeriodEnd, subscriptionId });
+    }
+    catch (e) {
+        const msg = e instanceof Error ? e.message : "error";
+        logger.error("refreshEntitlement error", msg);
+        res.status(400).json({ error: msg });
     }
 });
