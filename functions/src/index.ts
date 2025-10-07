@@ -195,6 +195,69 @@ export const createCheckoutSession = onRequest(
   }
 );
 
+export const refreshEntitlement = onRequest(
+  { region: "southamerica-east1" },
+  async (req, res) => {
+    applyCors(req as any, res as any);
+    if (req.method === "OPTIONS") return void res.status(204).send("");
+
+    try {
+      if (req.method !== "POST") {
+        return void res.status(405).json({ error: "method-not-allowed" });
+      }
+
+      // auth
+      const decoded = await verifyBearer(req as any);
+      const uid = decoded.uid;
+
+      // pega stripeCustomerId do Firestore
+      const userRef = db.collection("users").doc(uid);
+      const snap = await userRef.get();
+      const customerId = (snap.exists
+        ? (snap.data() as any)?.stripeCustomerId
+        : undefined) as string | undefined;
+
+      if (!customerId) {
+        await userRef.set(
+          { entitlement: { active: false, plan: null, currentPeriodEnd: null, subscriptionId: null } },
+          { merge: true }
+        );
+        return void res.json({ entitled: false, reason: "no-customer" });
+      }
+
+      // lista assinaturas no Stripe e checa se alguma está válida
+      const subs = await stripe.subscriptions.list({
+        customer: customerId,
+        status: "all",
+        expand: ["data.items"],
+      });
+
+      const valid = subs.data.find((s) => ["active", "trialing", "past_due"].includes(s.status)) || null;
+
+      const active = !!valid;
+      let plan: "annual" | "monthly" | null = null;
+      let currentPeriodEnd: number | null = null;
+      let subscriptionId: string | null = null;
+
+      if (valid) {
+        const priceId = valid.items.data[0]?.price?.id;
+        plan = priceId === process.env.STRIPE_PRICE_ID_ANNUAL ? "annual" : "monthly";
+        currentPeriodEnd = valid.current_period_end ?? null;
+        subscriptionId = valid.id ?? null;
+      }
+
+      await userRef.set(
+        { entitlement: { active, plan, currentPeriodEnd, subscriptionId } },
+        { merge: true }
+      );
+
+      return res.json({ entitled: active, plan, currentPeriodEnd, subscriptionId });
+    } catch (e) {
+      return res.status(400).json({ error: (e as Error).message || "error" });
+    }
+  }
+);
+
 
 /** Webhook Stripe (não usa CORS/bearer; precisa do rawBody) */
 export const stripeWebhook = onRequest(
