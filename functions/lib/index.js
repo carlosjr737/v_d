@@ -103,8 +103,16 @@ exports.checkEntitlement = (0, https_1.onRequest)(async (req, res) => {
         const decoded = await verifyBearer(req);
         const uid = decoded.uid;
         const snap = await db.collection("users").doc(uid).get();
-        const active = !!(snap.exists && snap.data()?.entitlement?.active);
-        res.json({ active });
+        const entitlement = (snap.exists ? snap.data()?.entitlement : null) ?? {};
+        const active = !!entitlement.active;
+        const plan = (entitlement.plan ?? null) || null;
+        const currentPeriodEnd = typeof entitlement.currentPeriodEnd === "number"
+            ? entitlement.currentPeriodEnd
+            : null;
+        const expiresAt = typeof currentPeriodEnd === "number"
+            ? new Date(currentPeriodEnd * 1000).toISOString()
+            : null;
+        res.json({ active, plan, currentPeriodEnd, expiresAt });
     }
     catch (e) {
         const msg = e instanceof Error ? e.message : "error";

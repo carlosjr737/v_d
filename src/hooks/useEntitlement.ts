@@ -7,20 +7,42 @@ import {
   signInWithEmailLink
 } from 'firebase/auth';
 import { auth, googleProvider, appleProvider } from '@/config/firebase';
-import { checkEntitlement, createCheckoutSession } from '@/services/entitlementApi';
+import {
+  checkEntitlement,
+  createCheckoutSession,
+  type EntitlementResponse,
+  type Plan,
+} from '@/services/entitlementApi';
 
-type Entitlement = { active: boolean; expiresAt?: string | null; loading: boolean };
+type EntitlementState = {
+  active: boolean;
+  expiresAt: string | null;
+  loading: boolean;
+  plan: Plan | null;
+};
 
 export function useEntitlement() {
-  const [state, setState] = useState<Entitlement>({ active: false, loading: true, expiresAt: null });
+  const [state, setState] = useState<EntitlementState>({
+    active: false,
+    loading: true,
+    expiresAt: null,
+    plan: null,
+  });
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (): Promise<EntitlementResponse> => {
     try {
       setState((s) => ({ ...s, loading: true }));
       const data = await checkEntitlement();
-      setState({ active: !!data.active, expiresAt: data.expiresAt ?? null, loading: false });
-    } catch {
+      setState({
+        active: !!data.active,
+        expiresAt: data.expiresAt ?? null,
+        loading: false,
+        plan: data.plan ?? null,
+      });
+      return data;
+    } catch (err) {
       setState((s) => ({ ...s, loading: false }));
+      throw err;
     }
   }, []);
 
@@ -54,7 +76,7 @@ export function useEntitlement() {
     return 'link_sent' as const;
   };
 
-  const openCheckout = async (promoCode?: string, plan: 'monthly' | 'annual' = 'monthly') => {
+  const openCheckout = async (promoCode?: string, plan: Plan = 'monthly') => {
     const { url } = await createCheckoutSession(promoCode, plan);
     window.location.href = url;
   };

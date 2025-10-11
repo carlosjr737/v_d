@@ -1,15 +1,29 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useEntitlement } from '@/hooks/useEntitlement';
 
 type Props = { isOpen: boolean; onClose: () => void; promoCode?: string };
 
 export function PaywallModal({ isOpen, onClose, promoCode }: Props) {
-  const { loginGoogle, loginApple, loginEmailLink, openCheckout } = useEntitlement();
+  const { loginGoogle, loginApple, loginEmailLink, openCheckout, refresh, active, loading } =
+    useEntitlement();
   const [email, setEmail] = useState('');
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
   const [step, setStep] = useState<'auth' | 'loading' | 'error'>('auth');
   const [err, setErr] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setStep('auth');
+      setErr(null);
+      setInfo(null);
+      return;
+    }
+
+    if (!loading && active) {
+      onClose();
+    }
+  }, [isOpen, loading, active, onClose]);
 
   if (!isOpen) return null;
 
@@ -18,14 +32,15 @@ export function PaywallModal({ isOpen, onClose, promoCode }: Props) {
       setStep('loading');
       setInfo(null);
       await openCheckout(promoCode, selectedPlan);
-    } catch (e: any) {
-      setErr(e?.message || 'Falha ao abrir o checkout');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Falha ao abrir o checkout';
+      setErr(message);
       setInfo(null);
       setStep('error');
     }
   };
 
-  const afterLogin = async (fn: () => Promise<any>) => {
+  const afterLogin = async (fn: () => Promise<unknown>) => {
     try {
       setStep('loading');
       setErr(null);
@@ -36,9 +51,25 @@ export function PaywallModal({ isOpen, onClose, promoCode }: Props) {
         setStep('auth');
         return;
       }
+      try {
+        const entitlement = await refresh();
+        if (entitlement?.active) {
+          setStep('auth');
+          setInfo(null);
+          onClose();
+          return;
+        }
+      } catch (refreshErr: unknown) {
+        const message = refreshErr instanceof Error ? refreshErr.message : 'Falha ao verificar sua assinatura';
+        setErr(message);
+        setInfo(null);
+        setStep('error');
+        return;
+      }
       await doCheckout();
-    } catch (e: any) {
-      setErr(e?.message || 'Falha na autenticação');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Falha na autenticação';
+      setErr(message);
       setInfo(null);
       setStep('error');
     }
