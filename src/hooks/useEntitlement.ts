@@ -65,6 +65,7 @@ export function useEntitlement() {
       throw new Error('Informe uma senha');
     }
 
+
     const createAccount = async () => {
       try {
         await createUserWithEmailAndPassword(auth, trimmedEmail, trimmedPassword);
@@ -94,14 +95,17 @@ export function useEntitlement() {
         if (code === 'auth/user-not-found' || code === 'auth/invalid-credential') {
           await createAccount();
           return;
+
         }
 
         if (code === 'auth/wrong-password') {
           throw new Error('Senha incorreta. Tente novamente.');
         }
 
+
         if (code === 'auth/invalid-email') {
           throw new Error('Informe um e-mail válido');
+
         }
       }
 
