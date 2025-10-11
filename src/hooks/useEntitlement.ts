@@ -2,11 +2,10 @@ import { useEffect, useState, useCallback } from 'react';
 import {
   onAuthStateChanged,
   signInWithPopup,
-  sendSignInLinkToEmail,
-  isSignInWithEmailLink,
-  signInWithEmailLink
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword
 } from 'firebase/auth';
-import { auth, googleProvider, appleProvider } from '@/config/firebase';
+import { auth, googleProvider } from '@/config/firebase';
 import {
   checkEntitlement,
   createCheckoutSession,
@@ -50,30 +49,64 @@ export function useEntitlement() {
     const unsub = onAuthStateChanged(auth, () => {
       refresh().catch(() => {});
     });
-    if (isSignInWithEmailLink(auth, window.location.href)) {
-      const email = window.localStorage.getItem('magic_email') || window.prompt('Confirme seu e-mail');
-      if (email) {
-        signInWithEmailLink(auth, email, window.location.href).finally(() => {
-          window.localStorage.removeItem('magic_email');
-        });
-      }
-    }
     return () => unsub();
   }, [refresh]);
 
   const loginGoogle = async () => signInWithPopup(auth, googleProvider);
-  const loginApple = async () => signInWithPopup(auth, appleProvider);
-  const loginEmailLink = async (email: string, continueUrl?: string) => {
-    const trimmed = email.trim();
-    if (!trimmed) {
+  const loginEmailPassword = async (email: string, password: string) => {
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+
+    if (!trimmedEmail) {
       throw new Error('Informe um e-mail válido');
     }
-    await sendSignInLinkToEmail(auth, trimmed, {
-      url: continueUrl || window.location.href,
-      handleCodeInApp: true,
-    });
-    window.localStorage.setItem('magic_email', trimmed);
-    return 'link_sent' as const;
+
+    if (!trimmedPassword) {
+      throw new Error('Informe uma senha');
+    }
+
+    try {
+      await signInWithEmailAndPassword(auth, trimmedEmail, trimmedPassword);
+      return;
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'code' in err) {
+        const code = (err as { code: string }).code;
+        if (code === 'auth/user-not-found') {
+          try {
+            await createUserWithEmailAndPassword(auth, trimmedEmail, trimmedPassword);
+            return;
+          } catch (createErr: unknown) {
+            if (createErr && typeof createErr === 'object' && 'code' in createErr) {
+              const createCode = (createErr as { code: string }).code;
+              if (createCode === 'auth/weak-password') {
+                throw new Error('Sua senha precisa ter pelo menos 6 caracteres.');
+              }
+              if (createCode === 'auth/email-already-in-use') {
+                throw new Error('E-mail já cadastrado. Entre com sua senha.');
+              }
+            }
+            if (createErr instanceof Error) {
+              throw createErr;
+            }
+            throw new Error('Não foi possível criar sua conta.');
+          }
+        }
+
+        if (code === 'auth/wrong-password') {
+          throw new Error('Senha incorreta. Tente novamente.');
+        }
+
+        if (code === 'auth/invalid-credential') {
+          throw new Error('Credenciais inválidas. Verifique os dados informados.');
+        }
+      }
+
+      if (err instanceof Error) {
+        throw err;
+      }
+
+      throw new Error('Não foi possível autenticar.');
+    }
   };
 
   const openCheckout = async (promoCode?: string, plan: Plan = 'monthly') => {
@@ -81,5 +114,5 @@ export function useEntitlement() {
     window.location.href = url;
   };
 
-  return { ...state, refresh, loginGoogle, loginApple, loginEmailLink, openCheckout };
+  return { ...state, refresh, loginGoogle, loginEmailPassword, openCheckout };
 }
