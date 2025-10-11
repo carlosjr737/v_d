@@ -1,10 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import {
-  getAuth,
-  GoogleAuthProvider,
-  OAuthProvider,
-  isSignInWithEmailLink,
-} from 'firebase/auth';
+import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const FALLBACK_FIREBASE_CONFIG = {
@@ -65,11 +60,8 @@ export const auth = app ? getAuth(app) : (null as any);
 export const db = app ? getFirestore(app) : (null as any);
 
 export const googleProvider = new GoogleAuthProvider();
-export const appleProvider = new OAuthProvider('apple.com');
 
 export const FUNCTIONS_BASE_URL = requireEnv('VITE_FUNCTIONS_BASE_URL', null);
-
-export const isEmailLink = () => typeof window !== 'undefined' && isSignInWithEmailLink(auth, window.location.href);
 
 export const FIRESTORE_BASE_URL =
   `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents`;
