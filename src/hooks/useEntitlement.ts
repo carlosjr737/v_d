@@ -65,39 +65,47 @@ export function useEntitlement() {
       throw new Error('Informe uma senha');
     }
 
+
+    const createAccount = async () => {
+      try {
+        await createUserWithEmailAndPassword(auth, trimmedEmail, trimmedPassword);
+      } catch (createErr: unknown) {
+        if (createErr && typeof createErr === 'object' && 'code' in createErr) {
+          const createCode = (createErr as { code: string }).code;
+          if (createCode === 'auth/weak-password') {
+            throw new Error('Sua senha precisa ter pelo menos 6 caracteres.');
+          }
+          if (createCode === 'auth/email-already-in-use') {
+            throw new Error('Senha incorreta. Tente novamente.');
+          }
+        }
+        if (createErr instanceof Error) {
+          throw createErr;
+        }
+        throw new Error('Não foi possível criar sua conta.');
+      }
+    };
+
     try {
       await signInWithEmailAndPassword(auth, trimmedEmail, trimmedPassword);
-      return;
     } catch (err: unknown) {
       if (err && typeof err === 'object' && 'code' in err) {
         const code = (err as { code: string }).code;
-        if (code === 'auth/user-not-found') {
-          try {
-            await createUserWithEmailAndPassword(auth, trimmedEmail, trimmedPassword);
-            return;
-          } catch (createErr: unknown) {
-            if (createErr && typeof createErr === 'object' && 'code' in createErr) {
-              const createCode = (createErr as { code: string }).code;
-              if (createCode === 'auth/weak-password') {
-                throw new Error('Sua senha precisa ter pelo menos 6 caracteres.');
-              }
-              if (createCode === 'auth/email-already-in-use') {
-                throw new Error('E-mail já cadastrado. Entre com sua senha.');
-              }
-            }
-            if (createErr instanceof Error) {
-              throw createErr;
-            }
-            throw new Error('Não foi possível criar sua conta.');
-          }
+
+        if (code === 'auth/user-not-found' || code === 'auth/invalid-credential') {
+          await createAccount();
+          return;
+
         }
 
         if (code === 'auth/wrong-password') {
           throw new Error('Senha incorreta. Tente novamente.');
         }
 
-        if (code === 'auth/invalid-credential') {
-          throw new Error('Credenciais inválidas. Verifique os dados informados.');
+
+        if (code === 'auth/invalid-email') {
+          throw new Error('Informe um e-mail válido');
+
         }
       }
 
