@@ -1,6 +1,12 @@
 import { auth, firebaseConfig } from '@/config/firebase';
 
-type Plan = 'monthly' | 'annual';
+export type Plan = 'monthly' | 'annual';
+export type EntitlementResponse = {
+  active: boolean;
+  plan: Plan | null;
+  currentPeriodEnd: number | null;
+  expiresAt: string | null;
+};
 
 function inferFunctionsBaseUrl() {
   const envBase = (import.meta.env.VITE_FUNCTIONS_BASE_URL as string | undefined)?.trim();
@@ -85,10 +91,7 @@ export async function startCheckout(options?: { promoCode?: string; plan?: Plan 
  * { active: boolean, plan?: "monthly"|"annual", currentPeriodEnd?: number }
  */
 export async function checkEntitlement() {
-  return authFetch<{ active: boolean; plan?: Plan | null; currentPeriodEnd?: number | null }>(
-    '/checkEntitlement',
-    { method: 'GET' }
-  );
+  return authFetch<EntitlementResponse>('/checkEntitlement', { method: 'GET' });
 }
 
 export async function refreshEntitlementRequest(idToken: string) {
