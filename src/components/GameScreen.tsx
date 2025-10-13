@@ -15,6 +15,7 @@ import type { GameState as ChooseGameState } from '@/models/game';
 import type { CardIntensity } from '@/models/cards';
 import { chooseNextCardReducer, type Action as ChooseAction } from '@/state/chooseNextCardReducer';
 import { toGameCard, toPowerCard } from '@/utils/powerCardAdapter';
+import { useEntitlement } from '@/hooks/useEntitlement';
 
 function createPowerStateFromGame(gameState: LegacyGameState): ChooseGameState {
   const intensity = (gameState.intensity ?? 'leve') as CardIntensity;
@@ -184,6 +185,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({
   const [isChooseModalOpen, setIsChooseModalOpen] = useState(false);
   const [powerState, setPowerState] = useState<ChooseGameState>(() => createPowerStateFromGame(gameState));
   const [pointDeltas, setPointDeltas] = useState<Record<string, number | null>>({});
+  const { user, loginGoogle, logout, loading: entitlementLoading } = useEntitlement();
+  const [authBusy, setAuthBusy] = useState(false);
 
   const drawIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const drawTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -500,6 +503,33 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     await dispatchPower({ type: 'TICK_TURN' });
   };
 
+  const handleLogin = async () => {
+    try {
+      setAuthBusy(true);
+      await loginGoogle();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Falha ao tentar entrar.';
+      alert(message);
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      setAuthBusy(true);
+      await logout();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Falha ao sair da conta.';
+      alert(message);
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const authLoading = authBusy || entitlementLoading;
+  const userLabel = user?.displayName || user?.email || null;
+
   const drawHighlightText = finalDrawName ?? highlightedName ?? 'Girando nomes...';
   const drawStatusText = finalDrawName ? 'Próximo jogador definido!' : 'Girando nomes...';
 
@@ -568,13 +598,30 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     <>
       <div className="grid min-h-dvh grid-rows-[auto_auto_88px] overflow-hidden">
         <div className="px-4 py-3">
-          <TurnHeader
-            currentPlayer={currentPlayer}
-            intensity={intensity}
-            boostPoints={boostPoints}
-            points={currentPlayerPoints}
-            lastDelta={currentPlayerDelta}
-          />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <TurnHeader
+              currentPlayer={currentPlayer}
+              intensity={intensity}
+              boostPoints={boostPoints}
+              points={currentPlayerPoints}
+              lastDelta={currentPlayerDelta}
+            />
+            <div className="flex shrink-0 flex-col items-end gap-2 text-right text-xs text-text-subtle">
+              {userLabel && <span className="max-w-[12rem] truncate">Logado como {userLabel}</span>}
+              <button
+                type="button"
+                onClick={user ? handleLogout : handleLogin}
+                disabled={authLoading}
+                className={`rounded-pill px-4 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-white/40 ${
+                  user
+                    ? 'border border-white/30 text-white hover:border-white disabled:opacity-60'
+                    : 'bg-white text-black hover:scale-105 disabled:opacity-60 disabled:hover:scale-100'
+                }`}
+              >
+                {authLoading ? 'Carregando...' : user ? 'Sair da conta' : 'Entrar com Google'}
+              </button>
+            </div>
+          </div>
         </div>
         <div className="overflow-hidden">
           {cardPhase === 'idle' ? (
