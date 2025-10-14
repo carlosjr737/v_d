@@ -62,11 +62,13 @@ Acesse o [Stripe Dashboard](https://dashboard.stripe.com/products) e crie:
 No Firebase Functions, configure as seguintes variáveis:
 
 ```bash
+
 # Chaves do Stripe (Secret Manager)
 firebase functions:secrets:set STRIPE_SECRET_KEY --data="sk_live_..."
 firebase functions:secrets:set STRIPE_PRICE_ID_MONTHLY --data="price_1SIDjxGaPkvrhUnLfxIqIESn"
 firebase functions:secrets:set STRIPE_PRICE_ID_ANNUAL --data="price_1SIDlaGaPkvrhUnL7nNYC3xD"
 firebase functions:secrets:set STRIPE_WEBHOOK_SECRET --data="whsec_..."
+
 
 # URLs de redirecionamento
 firebase functions:secrets:set STRIPE_SUCCESS_URL --data="https://seu-dominio.com/checkout/success"
