@@ -162,11 +162,11 @@ export function PaywallModal({ isOpen, onClose, promoCode }: Props) {
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="font-semibold text-white">Anual</div>
-                      <div className="text-sm text-white/70">R$ 299,90/ano</div>
+                      <div className="text-sm text-white/70">R$ 97,90/ano</div>
                     </div>
                     <div className="text-right">
-                      <div className="text-xs text-accent-400 font-semibold">ECONOMIZE 50%</div>
-                      <div className="text-xs text-white/60">~R$ 25/mês</div>
+                      <div className="text-xs text-accent-400 font-semibold">ECONOMIZE 70%</div>
+                      <div className="text-xs text-white/60">~R$ 8/mês</div>
                     </div>
                   </div>
                 </button>
@@ -182,7 +182,7 @@ export function PaywallModal({ isOpen, onClose, promoCode }: Props) {
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="font-semibold text-white">Mensal</div>
-                      <div className="text-sm text-white/70">R$ 49,90/mês</div>
+                      <div className="text-sm text-white/70">R$ 29,90/mês</div>
                     </div>
                   </div>
                 </button>
@@ -192,7 +192,7 @@ export function PaywallModal({ isOpen, onClose, promoCode }: Props) {
               className="w-full rounded-xl bg-gradient-to-r from-pink-500 to-orange-400 py-2"
               onClick={doCheckout}
             >
-              {selectedPlan === 'annual' ? 'Assinar Anual (R$ 299,90)' : 'Assinar Mensal (R$ 49,90)'}
+              {selectedPlan === 'annual' ? 'Assinar Anual (R$ 97,90)' : 'Assinar Mensal (R$ 29,90)'}
             </button>
             <button className="mt-3 w-full text-sm text-white/60" onClick={handleContinueFree}>
               Continuar na versão gratuita
