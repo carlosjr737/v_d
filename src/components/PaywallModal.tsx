@@ -4,7 +4,15 @@ import { useEntitlement } from '@/hooks/useEntitlement';
 type Props = { isOpen: boolean; onClose: () => void; promoCode?: string };
 
 export function PaywallModal({ isOpen, onClose, promoCode }: Props) {
-  const { loginGoogle, loginEmailPassword, openCheckout, refresh, active, loading } = useEntitlement();
+  const {
+    loginGoogle,
+    loginEmailPassword,
+    openCheckout,
+    refresh,
+    active,
+    loading,
+    user,
+  } = useEntitlement();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
@@ -22,10 +30,27 @@ export function PaywallModal({ isOpen, onClose, promoCode }: Props) {
       return;
     }
 
-    if (!loading && active) {
-      onClose();
+    if (loading) {
+      return;
     }
-  }, [isOpen, loading, active, onClose]);
+
+    if (active) {
+      onClose();
+      return;
+    }
+
+    if (user) {
+      setEmail('');
+      setPassword('');
+      setSelectedPlan('annual');
+      setRetryStep('plan');
+      setStep('plan');
+      return;
+    }
+
+    setStep('auth');
+    setRetryStep('auth');
+  }, [isOpen, loading, active, user, onClose]);
 
   if (!isOpen) return null;
 
