@@ -83,10 +83,34 @@ function extractPriceIds(raw, fallback) {
 }
 const ANNUAL_PRICE_IDS = extractPriceIds(process.env.STRIPE_PRICE_ID_ANNUAL, DEFAULT_PRICE_IDS.annual);
 const MONTHLY_PRICE_IDS = extractPriceIds(process.env.STRIPE_PRICE_ID_MONTHLY, DEFAULT_PRICE_IDS.monthly);
-const STRIPE_PRICE_ID_ANNUAL = ANNUAL_PRICE_IDS[0];
-const STRIPE_PRICE_ID_MONTHLY = MONTHLY_PRICE_IDS[0];
 const KNOWN_ANNUAL_PRICE_IDS = new Set(ANNUAL_PRICE_IDS);
 const KNOWN_MONTHLY_PRICE_IDS = new Set(MONTHLY_PRICE_IDS);
+const ACTIVE_PRICE_CACHE = new Map();
+async function resolveActivePriceId(plan) {
+    const cached = ACTIVE_PRICE_CACHE.get(plan);
+    if (cached) {
+        return cached;
+    }
+    const candidates = plan === "annual" ? ANNUAL_PRICE_IDS : MONTHLY_PRICE_IDS;
+    for (const candidate of candidates) {
+        try {
+            const price = await stripe.prices.retrieve(candidate);
+            if (price.active) {
+                ACTIVE_PRICE_CACHE.set(plan, candidate);
+                return candidate;
+            }
+            logger.warn("resolveActivePriceId: price inactive", { plan, priceId: candidate });
+        }
+        catch (err) {
+            logger.warn("resolveActivePriceId: failed to retrieve price", {
+                plan,
+                priceId: candidate,
+                error: err?.message,
+            });
+        }
+    }
+    throw new Error(`no-active-price-${plan}`);
+}
 function inferPlanFromPrice(priceId) {
     if (!priceId)
         return null;
@@ -166,7 +190,7 @@ exports.createCheckoutSession = (0, https_1.onRequest)(async (req, res) => {
         const email = decoded.email ?? undefined;
         const body = (req.body ?? {});
         const plan = body.plan ?? "monthly";
-        const priceId = plan === "annual" ? STRIPE_PRICE_ID_ANNUAL : STRIPE_PRICE_ID_MONTHLY;
+        const priceId = await resolveActivePriceId(plan);
         if (!priceId) {
             res.status(500).json({ error: "missing-price-id" });
             return;
@@ -208,7 +232,8 @@ exports.createCheckoutSession = (0, https_1.onRequest)(async (req, res) => {
     catch (e) {
         const msg = e instanceof Error ? e.message : "error";
         logger.error("createCheckoutSession error", msg);
-        res.status(msg === "missing-token" ? 401 : 400).json({ error: msg });
+        const status = msg === "missing-token" ? 401 : msg.startsWith("no-active-price") ? 500 : 400;
+        res.status(status).json({ error: msg });
     }
 });
 // -------------------------------------------------------
