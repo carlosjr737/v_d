@@ -188,16 +188,12 @@ export const GameScreen: React.FC<GameScreenProps> = ({
   const [pointDeltas, setPointDeltas] = useState<Record<string, number | null>>({});
   const { user, loginGoogle, loginEmailPassword, logout, loading: entitlementLoading } =
     useEntitlement();
-  const [authBusy, setAuthBusy] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
-  const { user, loginGoogle, loginEmailPassword, logout, loading: entitlementLoading } =
-    useEntitlement();
-  const [authBusy, setAuthBusy] = useState(false);
-  const [showEmailLogin, setShowEmailLogin] = useState(false);
-  const [emailInput, setEmailInput] = useState('');
-  const [passwordInput, setPasswordInput] = useState('');
-  const [authError, setAuthError] = useState<string | null>(null);
+  const [authBusy, setAuthBusyState] = useState(false);
+  const handleAuthBusyChange = useCallback((busy: boolean) => {
+    setAuthBusyState(busy);
+  }, []);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
 
   const drawIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -762,7 +758,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={handleCloseAuthModal}
-        onBusyChange={setAuthBusy}
+
+        onBusyChange={handleAuthBusyChange}
+
         user={user}
         loginWithGoogle={loginGoogle}
         loginWithEmailPassword={loginEmailPassword}
