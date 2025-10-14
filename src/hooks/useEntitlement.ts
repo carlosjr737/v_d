@@ -3,7 +3,9 @@ import {
   onAuthStateChanged,
   signInWithPopup,
   signInWithEmailAndPassword,
-  createUserWithEmailAndPassword
+  createUserWithEmailAndPassword,
+  signOut,
+  type User,
 } from 'firebase/auth';
 import { auth, googleProvider } from '@/config/firebase';
 import {
@@ -18,6 +20,7 @@ type EntitlementState = {
   expiresAt: string | null;
   loading: boolean;
   plan: Plan | null;
+  user: User | null;
 };
 
 export function useEntitlement() {
@@ -26,18 +29,20 @@ export function useEntitlement() {
     loading: true,
     expiresAt: null,
     plan: null,
+    user: auth?.currentUser ?? null,
   });
 
   const refresh = useCallback(async (): Promise<EntitlementResponse> => {
     try {
       setState((s) => ({ ...s, loading: true }));
       const data = await checkEntitlement();
-      setState({
+      setState((prev) => ({
+        ...prev,
         active: !!data.active,
         expiresAt: data.expiresAt ?? null,
         loading: false,
         plan: data.plan ?? null,
-      });
+      }));
       return data;
     } catch (err) {
       setState((s) => ({ ...s, loading: false }));
@@ -46,7 +51,8 @@ export function useEntitlement() {
   }, []);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, () => {
+    const unsub = onAuthStateChanged(auth, (firebaseUser) => {
+      setState((prev) => ({ ...prev, user: firebaseUser ?? null }));
       refresh().catch(() => {});
     });
     return () => unsub();
@@ -122,5 +128,16 @@ export function useEntitlement() {
     window.location.href = url;
   };
 
-  return { ...state, refresh, loginGoogle, loginEmailPassword, openCheckout };
+  const logout = async () => {
+    await signOut(auth);
+    setState((prev) => ({
+      ...prev,
+      active: false,
+      expiresAt: null,
+      plan: null,
+      user: null,
+    }));
+  };
+
+  return { ...state, refresh, loginGoogle, loginEmailPassword, openCheckout, logout };
 }

@@ -15,6 +15,7 @@ import type { GameState as ChooseGameState } from '@/models/game';
 import type { CardIntensity } from '@/models/cards';
 import { chooseNextCardReducer, type Action as ChooseAction } from '@/state/chooseNextCardReducer';
 import { toGameCard, toPowerCard } from '@/utils/powerCardAdapter';
+import { useEntitlement } from '@/hooks/useEntitlement';
 
 function createPowerStateFromGame(gameState: LegacyGameState): ChooseGameState {
   const intensity = (gameState.intensity ?? 'leve') as CardIntensity;
@@ -184,6 +185,13 @@ export const GameScreen: React.FC<GameScreenProps> = ({
   const [isChooseModalOpen, setIsChooseModalOpen] = useState(false);
   const [powerState, setPowerState] = useState<ChooseGameState>(() => createPowerStateFromGame(gameState));
   const [pointDeltas, setPointDeltas] = useState<Record<string, number | null>>({});
+  const { user, loginGoogle, loginEmailPassword, logout, loading: entitlementLoading } =
+    useEntitlement();
+  const [authBusy, setAuthBusy] = useState(false);
+  const [showEmailLogin, setShowEmailLogin] = useState(false);
+  const [emailInput, setEmailInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const drawIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const drawTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -415,7 +423,12 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     setUi((s) => ({ ...s, drawing: true }));
     try {
       navigator.vibrate?.(35);
-    } catch {}
+    } catch (err) {
+      if (import.meta.env.DEV) {
+        // Alguns navegadores lançam erro quando a API de vibração não está disponível.
+        console.warn('Vibração indisponível neste dispositivo.', err);
+      }
+    }
     const t = setTimeout(() => {
       if (kind === 'verdade') {
         handleDrawCard('truth');
@@ -500,6 +513,53 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     await dispatchPower({ type: 'TICK_TURN' });
   };
 
+  const handleLoginGoogle = async () => {
+    try {
+      setAuthBusy(true);
+      setAuthError(null);
+      setShowEmailLogin(false);
+      await loginGoogle();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Falha ao tentar entrar.';
+      setAuthError(message);
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const handleLoginEmail = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    try {
+      setAuthBusy(true);
+      setAuthError(null);
+      await loginEmailPassword(emailInput, passwordInput);
+      setShowEmailLogin(false);
+      setEmailInput('');
+      setPasswordInput('');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Falha ao tentar entrar.';
+      setAuthError(message);
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      setAuthBusy(true);
+      setAuthError(null);
+      await logout();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Falha ao sair da conta.';
+      setAuthError(message);
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const authLoading = authBusy || entitlementLoading;
+  const userLabel = user?.displayName || user?.email || null;
+
   const drawHighlightText = finalDrawName ?? highlightedName ?? 'Girando nomes...';
   const drawStatusText = finalDrawName ? 'Próximo jogador definido!' : 'Girando nomes...';
 
@@ -568,13 +628,108 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     <>
       <div className="grid min-h-dvh grid-rows-[auto_auto_88px] overflow-hidden">
         <div className="px-4 py-3">
-          <TurnHeader
-            currentPlayer={currentPlayer}
-            intensity={intensity}
-            boostPoints={boostPoints}
-            points={currentPlayerPoints}
-            lastDelta={currentPlayerDelta}
-          />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <TurnHeader
+              currentPlayer={currentPlayer}
+              intensity={intensity}
+              boostPoints={boostPoints}
+              points={currentPlayerPoints}
+              lastDelta={currentPlayerDelta}
+            />
+            <div className="flex shrink-0 flex-col items-end gap-2 text-right text-xs text-text-subtle">
+              {userLabel && <span className="max-w-[12rem] truncate">Logado como {userLabel}</span>}
+              {authError && (
+                <span className="max-w-[16rem] text-right text-[0.65rem] text-red-300">{authError}</span>
+              )}
+              {user ? (
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  disabled={authLoading}
+                  className="rounded-pill border border-white/30 px-4 py-2 text-sm font-semibold text-white transition hover:border-white focus:outline-none focus:ring-2 focus:ring-white/40 disabled:opacity-60"
+                >
+                  {authLoading ? 'Saindo...' : 'Sair da conta'}
+                </button>
+              ) : (
+                <div className="flex flex-col items-end gap-2">
+                  <button
+                    type="button"
+                    onClick={handleLoginGoogle}
+                    disabled={authLoading}
+                    className="rounded-pill bg-white px-4 py-2 text-sm font-semibold text-black transition hover:scale-105 focus:outline-none focus:ring-2 focus:ring-white/40 disabled:opacity-60 disabled:hover:scale-100"
+                  >
+                    {authLoading ? 'Carregando...' : 'Entrar com Google'}
+                  </button>
+                  {showEmailLogin ? (
+                    <form
+                      onSubmit={handleLoginEmail}
+                      className="flex w-64 flex-col gap-2 rounded-xl border border-white/30 bg-white/10 p-3 text-left text-xs text-white backdrop-blur"
+                    >
+                      <label className="flex flex-col gap-1">
+                        <span className="text-[0.65rem] uppercase tracking-wide text-white/60">E-mail</span>
+                        <input
+                          type="email"
+                          value={emailInput}
+                          onChange={(event) => setEmailInput(event.target.value)}
+                          disabled={authLoading}
+                          className="w-full rounded-lg border border-white/30 bg-black/40 px-2 py-1 text-sm text-white placeholder:text-white/40 focus:border-white focus:outline-none"
+                          placeholder="seuemail@exemplo.com"
+                          required
+                        />
+                      </label>
+                      <label className="flex flex-col gap-1">
+                        <span className="text-[0.65rem] uppercase tracking-wide text-white/60">Senha</span>
+                        <input
+                          type="password"
+                          value={passwordInput}
+                          onChange={(event) => setPasswordInput(event.target.value)}
+                          disabled={authLoading}
+                          className="w-full rounded-lg border border-white/30 bg-black/40 px-2 py-1 text-sm text-white placeholder:text-white/40 focus:border-white focus:outline-none"
+                          placeholder="Mínimo 6 caracteres"
+                          required
+                        />
+                      </label>
+                      {authError && (
+                        <span className="text-[0.65rem] text-red-300">{authError}</span>
+                      )}
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowEmailLogin(false);
+                            setAuthError(null);
+                          }}
+                          className="text-[0.65rem] font-semibold text-white/70 transition hover:text-white"
+                          disabled={authLoading}
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={authLoading}
+                          className="rounded-pill bg-white px-3 py-1.5 text-xs font-semibold text-black transition hover:scale-105 focus:outline-none focus:ring-2 focus:ring-white/40 disabled:opacity-60 disabled:hover:scale-100"
+                        >
+                          {authLoading ? 'Entrando...' : 'Entrar'}
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowEmailLogin(true);
+                        setAuthError(null);
+                      }}
+                      disabled={authLoading}
+                      className="text-[0.65rem] font-semibold text-white/80 transition hover:text-white focus:outline-none focus:ring-2 focus:ring-white/40 disabled:opacity-60"
+                    >
+                      Entrar com e-mail e senha
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
         <div className="overflow-hidden">
           {cardPhase === 'idle' ? (
