@@ -188,11 +188,13 @@ export const GameScreen: React.FC<GameScreenProps> = ({
   const [pointDeltas, setPointDeltas] = useState<Record<string, number | null>>({});
   const { user, loginGoogle, loginEmailPassword, logout, loading: entitlementLoading } =
     useEntitlement();
+
   const [authBusy, setAuthBusyState] = useState(false);
   const handleAuthBusyChange = useCallback((busy: boolean) => {
     setAuthBusyState(busy);
   }, []);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
 
   const drawIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const drawTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -514,6 +516,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     await dispatchPower({ type: 'TICK_TURN' });
   };
 
+
   const authLoading = authBusy || entitlementLoading;
   const userLabel = user?.displayName || user?.email || null;
   const handleOpenAuthModal = useCallback(() => {
@@ -526,6 +529,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
   const handleCloseAuthModal = useCallback(() => {
     setIsAuthModalOpen(false);
   }, []);
+
 
   const drawHighlightText = finalDrawName ?? highlightedName ?? 'Girando nomes...';
   const drawStatusText = finalDrawName ? 'Próximo jogador definido!' : 'Girando nomes...';
@@ -605,6 +609,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
             />
             <div className="flex shrink-0 flex-col items-end gap-2 text-right text-xs text-text-subtle">
               {userLabel && <span className="max-w-[12rem] truncate">Logado como {userLabel}</span>}
+
               <button
                 type="button"
                 onClick={handleOpenAuthModal}
@@ -613,6 +618,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
               >
                 {authLoading ? 'Carregando...' : user ? 'Conta' : 'Entrar'}
               </button>
+
             </div>
           </div>
         </div>
@@ -752,7 +758,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={handleCloseAuthModal}
+
         onBusyChange={handleAuthBusyChange}
+
         user={user}
         loginWithGoogle={loginGoogle}
         loginWithEmailPassword={loginEmailPassword}
