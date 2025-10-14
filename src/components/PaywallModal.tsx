@@ -20,6 +20,13 @@ export function PaywallModal({ isOpen, onClose, promoCode }: Props) {
   const [err, setErr] = useState<string | null>(null);
   const [retryStep, setRetryStep] = useState<'auth' | 'plan'>('auth');
 
+  const handleContinueFree = () => {
+    onClose();
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      window.history.back();
+    }
+  };
+
   useEffect(() => {
     if (!isOpen) {
       setStep('auth');
@@ -132,7 +139,7 @@ export function PaywallModal({ isOpen, onClose, promoCode }: Props) {
                 Criar conta e continuar
               </button>
             </div>
-            <button className="mt-2 w-full text-sm text-white/60" onClick={onClose}>
+            <button className="mt-2 w-full text-sm text-white/60" onClick={handleContinueFree}>
               Continuar grátis
             </button>
           </>
@@ -186,6 +193,9 @@ export function PaywallModal({ isOpen, onClose, promoCode }: Props) {
               onClick={doCheckout}
             >
               {selectedPlan === 'annual' ? 'Assinar Anual (R$ 299,90)' : 'Assinar Mensal (R$ 49,90)'}
+            </button>
+            <button className="mt-3 w-full text-sm text-white/60" onClick={handleContinueFree}>
+              Continuar na versão gratuita
             </button>
           </>
         )}
