@@ -15,6 +15,7 @@ import type { GameState as ChooseGameState } from '@/models/game';
 import type { CardIntensity } from '@/models/cards';
 import { chooseNextCardReducer, type Action as ChooseAction } from '@/state/chooseNextCardReducer';
 import { toGameCard, toPowerCard } from '@/utils/powerCardAdapter';
+import { useEntitlement } from '@/hooks/useEntitlement';
 
 function createPowerStateFromGame(gameState: LegacyGameState): ChooseGameState {
   const intensity = (gameState.intensity ?? 'leve') as CardIntensity;
@@ -184,6 +185,13 @@ export const GameScreen: React.FC<GameScreenProps> = ({
   const [isChooseModalOpen, setIsChooseModalOpen] = useState(false);
   const [powerState, setPowerState] = useState<ChooseGameState>(() => createPowerStateFromGame(gameState));
   const [pointDeltas, setPointDeltas] = useState<Record<string, number | null>>({});
+  const { user, loginGoogle, loginEmailPassword, logout, loading: entitlementLoading } =
+    useEntitlement();
+  const [authBusy, setAuthBusy] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [emailInput, setEmailInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const drawIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const drawTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -415,7 +423,12 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     setUi((s) => ({ ...s, drawing: true }));
     try {
       navigator.vibrate?.(35);
-    } catch {}
+    } catch (err) {
+      if (import.meta.env.DEV) {
+        // Alguns navegadores lançam erro quando a API de vibração não está disponível.
+        console.warn('Vibração indisponível neste dispositivo.', err);
+      }
+    }
     const t = setTimeout(() => {
       if (kind === 'verdade') {
         handleDrawCard('truth');
@@ -500,6 +513,63 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     await dispatchPower({ type: 'TICK_TURN' });
   };
 
+  const handleLoginGoogle = async () => {
+    try {
+      setAuthBusy(true);
+      setAuthError(null);
+      await loginGoogle();
+      setIsAuthModalOpen(false);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Falha ao tentar entrar.';
+      setAuthError(message);
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const handleLoginEmail = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    try {
+      setAuthBusy(true);
+      setAuthError(null);
+      await loginEmailPassword(emailInput, passwordInput);
+      setIsAuthModalOpen(false);
+      setEmailInput('');
+      setPasswordInput('');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Falha ao tentar entrar.';
+      setAuthError(message);
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      setAuthBusy(true);
+      setAuthError(null);
+      await logout();
+      setIsAuthModalOpen(false);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Falha ao sair da conta.';
+      setAuthError(message);
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const authLoading = authBusy || entitlementLoading;
+  const userLabel = user?.displayName || user?.email || null;
+  const handleCloseAuthModal = useCallback(() => {
+    if (authLoading) {
+      return;
+    }
+    setIsAuthModalOpen(false);
+    setAuthError(null);
+    setEmailInput('');
+    setPasswordInput('');
+  }, [authLoading]);
+
   const drawHighlightText = finalDrawName ?? highlightedName ?? 'Girando nomes...';
   const drawStatusText = finalDrawName ? 'Próximo jogador definido!' : 'Girando nomes...';
 
@@ -568,13 +638,29 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     <>
       <div className="grid min-h-dvh grid-rows-[auto_auto_88px] overflow-hidden">
         <div className="px-4 py-3">
-          <TurnHeader
-            currentPlayer={currentPlayer}
-            intensity={intensity}
-            boostPoints={boostPoints}
-            points={currentPlayerPoints}
-            lastDelta={currentPlayerDelta}
-          />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <TurnHeader
+              currentPlayer={currentPlayer}
+              intensity={intensity}
+              boostPoints={boostPoints}
+              points={currentPlayerPoints}
+              lastDelta={currentPlayerDelta}
+            />
+            <div className="flex shrink-0 flex-col items-end gap-2 text-right text-xs text-text-subtle">
+              {userLabel && <span className="max-w-[12rem] truncate">Logado como {userLabel}</span>}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAuthModalOpen(true);
+                  setAuthError(null);
+                }}
+                disabled={authLoading}
+                className="rounded-pill border border-white/30 px-4 py-2 text-sm font-semibold text-white transition hover:border-white focus:outline-none focus:ring-2 focus:ring-white/40 disabled:opacity-60"
+              >
+                {authLoading ? 'Carregando...' : user ? 'Conta' : 'Entrar'}
+              </button>
+            </div>
+          </div>
         </div>
         <div className="overflow-hidden">
           {cardPhase === 'idle' ? (
@@ -706,6 +792,129 @@ export const GameScreen: React.FC<GameScreenProps> = ({
                 <span>{drawStatusText}</span>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+      {isAuthModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8 backdrop-blur"
+          onClick={handleCloseAuthModal}
+          role="presentation"
+        >
+          <div
+            className="relative w-full max-w-sm rounded-3xl border border-white/10 bg-bg-900/95 p-6 text-left text-white shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={handleCloseAuthModal}
+              disabled={authLoading}
+              className="absolute right-4 top-4 rounded-full border border-white/10 p-1 text-white/70 transition hover:text-white focus:outline-none focus:ring-2 focus:ring-white/40 disabled:opacity-60"
+              aria-label="Fechar"
+            >
+              ×
+            </button>
+            {user ? (
+              <div className="space-y-5">
+                <div>
+                  <h2 className="text-lg font-semibold">Conta</h2>
+                  {userLabel && (
+                    <p className="mt-1 text-sm text-white/70">Logado como {userLabel}</p>
+                  )}
+                </div>
+                {authError && (
+                  <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-200">
+                    {authError}
+                  </div>
+                )}
+                <div className="flex flex-col gap-3">
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    disabled={authLoading}
+                    className="w-full rounded-pill border border-white/30 px-4 py-2 text-sm font-semibold text-white transition hover:border-white focus:outline-none focus:ring-2 focus:ring-white/40 disabled:opacity-60"
+                  >
+                    {authLoading ? 'Saindo...' : 'Sair da conta'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCloseAuthModal}
+                    disabled={authLoading}
+                    className="w-full rounded-pill border border-white/20 px-4 py-2 text-sm font-semibold text-white/80 transition hover:text-white focus:outline-none focus:ring-2 focus:ring-white/40 disabled:opacity-60"
+                  >
+                    Fechar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-5">
+                <div>
+                  <h2 className="text-lg font-semibold">Entrar</h2>
+                  <p className="mt-1 text-sm text-white/70">
+                    Use sua conta do Google ou e-mail e senha para continuar.
+                  </p>
+                </div>
+                {authError && (
+                  <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-200">
+                    {authError}
+                  </div>
+                )}
+                <div className="flex flex-col gap-3">
+                  <button
+                    type="button"
+                    onClick={handleLoginGoogle}
+                    disabled={authLoading}
+                    className="w-full rounded-pill bg-white px-4 py-2 text-sm font-semibold text-black transition hover:scale-105 focus:outline-none focus:ring-2 focus:ring-white/40 disabled:opacity-60 disabled:hover:scale-100"
+                  >
+                    {authLoading ? 'Carregando...' : 'Entrar com Google'}
+                  </button>
+                  <div className="text-center text-[0.65rem] uppercase tracking-[0.3em] text-white/30">ou</div>
+                  <form className="space-y-3" onSubmit={handleLoginEmail}>
+                    <label className="flex flex-col gap-1 text-sm">
+                      <span className="text-[0.65rem] uppercase tracking-wide text-white/50">E-mail</span>
+                      <input
+                        type="email"
+                        value={emailInput}
+                        onChange={(event) => {
+                          setEmailInput(event.target.value);
+                          if (authError) {
+                            setAuthError(null);
+                          }
+                        }}
+                        disabled={authLoading}
+                        className="w-full rounded-lg border border-white/20 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-white focus:outline-none"
+                        placeholder="seuemail@exemplo.com"
+                        required
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1 text-sm">
+                      <span className="text-[0.65rem] uppercase tracking-wide text-white/50">Senha</span>
+                      <input
+                        type="password"
+                        value={passwordInput}
+                        onChange={(event) => {
+                          setPasswordInput(event.target.value);
+                          if (authError) {
+                            setAuthError(null);
+                          }
+                        }}
+                        disabled={authLoading}
+                        className="w-full rounded-lg border border-white/20 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-white focus:outline-none"
+                        placeholder="Mínimo 6 caracteres"
+                        required
+                      />
+                    </label>
+                    <button
+                      type="submit"
+                      disabled={authLoading}
+                      className="w-full rounded-pill bg-white px-4 py-2 text-sm font-semibold text-black transition hover:scale-105 focus:outline-none focus:ring-2 focus:ring-white/40 disabled:opacity-60 disabled:hover:scale-100"
+                    >
+                      {authLoading ? 'Entrando...' : 'Entrar'}
+                    </button>
+                  </form>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
