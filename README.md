@@ -54,8 +54,8 @@ Siga estas diretrizes ao criar novas telas, estados ou componentes. Qualquer cor
 Acesse o [Stripe Dashboard](https://dashboard.stripe.com/products) e crie:
 
 **Produto: "Verdade ou Consequência Premium"**
-- Plano Mensal: R$ 49,90/mês
-- Plano Anual: R$ 299,90/ano (50% de desconto)
+- Plano Mensal: R$ 29,90/mês
+- Plano Anual: R$ 97,90/ano
 
 ### 2. Configurar Variáveis de Ambiente
 
@@ -64,8 +64,8 @@ No Firebase Functions, configure as seguintes variáveis:
 ```bash
 # Chaves do Stripe
 firebase functions:config:set stripe.secret_key="sk_live_..." 
-firebase functions:config:set stripe.monthly_price_id="price_..." 
-firebase functions:config:set stripe.annual_price_id="price_..."
+firebase functions:config:set stripe.monthly_price_id="price_1SIDjxGaPkvrhUnLfxIqIESn"
+firebase functions:config:set stripe.annual_price_id="price_1SIDlaGaPkvrhUnL7nNYC3xD"
 firebase functions:config:set stripe.webhook_secret="whsec_..."
 
 # URLs de redirecionamento
