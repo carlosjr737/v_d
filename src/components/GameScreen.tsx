@@ -185,6 +185,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
   const [isChooseModalOpen, setIsChooseModalOpen] = useState(false);
   const [powerState, setPowerState] = useState<ChooseGameState>(() => createPowerStateFromGame(gameState));
   const [pointDeltas, setPointDeltas] = useState<Record<string, number | null>>({});
+
   const { user, loginGoogle, loginEmailPassword, logout, loading: entitlementLoading } =
     useEntitlement();
   const [authBusy, setAuthBusy] = useState(false);
@@ -192,6 +193,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
   const [emailInput, setEmailInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [authError, setAuthError] = useState<string | null>(null);
+
 
   const drawIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const drawTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -513,6 +515,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     await dispatchPower({ type: 'TICK_TURN' });
   };
 
+
   const handleLoginGoogle = async () => {
     try {
       setAuthBusy(true);
@@ -539,6 +542,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Falha ao tentar entrar.';
       setAuthError(message);
+
     } finally {
       setAuthBusy(false);
     }
@@ -547,11 +551,13 @@ export const GameScreen: React.FC<GameScreenProps> = ({
   const handleLogout = async () => {
     try {
       setAuthBusy(true);
+
       setAuthError(null);
       await logout();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Falha ao sair da conta.';
       setAuthError(message);
+
     } finally {
       setAuthBusy(false);
     }
@@ -638,6 +644,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
             />
             <div className="flex shrink-0 flex-col items-end gap-2 text-right text-xs text-text-subtle">
               {userLabel && <span className="max-w-[12rem] truncate">Logado como {userLabel}</span>}
+
               {authError && (
                 <span className="max-w-[16rem] text-right text-[0.65rem] text-red-300">{authError}</span>
               )}
@@ -728,6 +735,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
                   )}
                 </div>
               )}
+
             </div>
           </div>
         </div>
