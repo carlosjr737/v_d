@@ -4,6 +4,7 @@ import { CheckCircle, Loader2 } from 'lucide-react';
 import { CreateCardModal } from './CreateCardModal';
 import { DeckModal } from './DeckModal';
 import { ChooseNextCardModal } from './ChooseNextCardModal';
+import { AuthModal } from './AuthModal';
 import { TurnHeader } from '@/components/TurnHeader';
 import { ChooseNextCardButton } from '@/components/ChooseNextCardButton';
 import { ChoiceGrid } from '../ui/ChoiceGrid';
@@ -15,6 +16,7 @@ import type { GameState as ChooseGameState } from '@/models/game';
 import type { CardIntensity } from '@/models/cards';
 import { chooseNextCardReducer, type Action as ChooseAction } from '@/state/chooseNextCardReducer';
 import { toGameCard, toPowerCard } from '@/utils/powerCardAdapter';
+import { useEntitlement } from '@/hooks/useEntitlement';
 
 function createPowerStateFromGame(gameState: LegacyGameState): ChooseGameState {
   const intensity = (gameState.intensity ?? 'leve') as CardIntensity;
@@ -184,6 +186,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({
   const [isChooseModalOpen, setIsChooseModalOpen] = useState(false);
   const [powerState, setPowerState] = useState<ChooseGameState>(() => createPowerStateFromGame(gameState));
   const [pointDeltas, setPointDeltas] = useState<Record<string, number | null>>({});
+  const { user, loginGoogle, loginEmailPassword, logout, loading: entitlementLoading } =
+    useEntitlement();
+  const [authBusy, setAuthBusy] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   const drawIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const drawTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -415,7 +421,12 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     setUi((s) => ({ ...s, drawing: true }));
     try {
       navigator.vibrate?.(35);
-    } catch {}
+    } catch (err) {
+      if (import.meta.env.DEV) {
+        // Alguns navegadores lançam erro quando a API de vibração não está disponível.
+        console.warn('Vibração indisponível neste dispositivo.', err);
+      }
+    }
     const t = setTimeout(() => {
       if (kind === 'verdade') {
         handleDrawCard('truth');
@@ -500,6 +511,19 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     await dispatchPower({ type: 'TICK_TURN' });
   };
 
+  const authLoading = authBusy || entitlementLoading;
+  const userLabel = user?.displayName || user?.email || null;
+  const handleOpenAuthModal = useCallback(() => {
+    if (authBusy) {
+      return;
+    }
+    setIsAuthModalOpen(true);
+  }, [authBusy]);
+
+  const handleCloseAuthModal = useCallback(() => {
+    setIsAuthModalOpen(false);
+  }, []);
+
   const drawHighlightText = finalDrawName ?? highlightedName ?? 'Girando nomes...';
   const drawStatusText = finalDrawName ? 'Próximo jogador definido!' : 'Girando nomes...';
 
@@ -568,13 +592,26 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     <>
       <div className="grid min-h-dvh grid-rows-[auto_auto_88px] overflow-hidden">
         <div className="px-4 py-3">
-          <TurnHeader
-            currentPlayer={currentPlayer}
-            intensity={intensity}
-            boostPoints={boostPoints}
-            points={currentPlayerPoints}
-            lastDelta={currentPlayerDelta}
-          />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <TurnHeader
+              currentPlayer={currentPlayer}
+              intensity={intensity}
+              boostPoints={boostPoints}
+              points={currentPlayerPoints}
+              lastDelta={currentPlayerDelta}
+            />
+            <div className="flex shrink-0 flex-col items-end gap-2 text-right text-xs text-text-subtle">
+              {userLabel && <span className="max-w-[12rem] truncate">Logado como {userLabel}</span>}
+              <button
+                type="button"
+                onClick={handleOpenAuthModal}
+                disabled={authLoading}
+                className="rounded-pill border border-white/30 px-4 py-2 text-sm font-semibold text-white transition hover:border-white focus:outline-none focus:ring-2 focus:ring-white/40 disabled:opacity-60"
+              >
+                {authLoading ? 'Carregando...' : user ? 'Conta' : 'Entrar'}
+              </button>
+            </div>
+          </div>
         </div>
         <div className="overflow-hidden">
           {cardPhase === 'idle' ? (
@@ -709,6 +746,15 @@ export const GameScreen: React.FC<GameScreenProps> = ({
           </div>
         </div>
       )}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={handleCloseAuthModal}
+        onBusyChange={setAuthBusy}
+        user={user}
+        loginWithGoogle={loginGoogle}
+        loginWithEmailPassword={loginEmailPassword}
+        logout={logout}
+      />
     </>
   );
 };
