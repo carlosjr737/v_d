@@ -54,24 +54,26 @@ Siga estas diretrizes ao criar novas telas, estados ou componentes. Qualquer cor
 Acesse o [Stripe Dashboard](https://dashboard.stripe.com/products) e crie:
 
 **Produto: "Verdade ou Consequência Premium"**
-- Plano Mensal: R$ 49,90/mês
-- Plano Anual: R$ 299,90/ano (50% de desconto)
+- Plano Mensal: R$ 29,90/mês
+- Plano Anual: R$ 97,90/ano
 
 ### 2. Configurar Variáveis de Ambiente
 
 No Firebase Functions, configure as seguintes variáveis:
 
 ```bash
-# Chaves do Stripe
-firebase functions:config:set stripe.secret_key="sk_live_..." 
-firebase functions:config:set stripe.monthly_price_id="price_..." 
-firebase functions:config:set stripe.annual_price_id="price_..."
-firebase functions:config:set stripe.webhook_secret="whsec_..."
+# Chaves do Stripe (Secret Manager)
+firebase functions:secrets:set STRIPE_SECRET_KEY --data="sk_live_..."
+firebase functions:secrets:set STRIPE_PRICE_ID_MONTHLY --data="price_1SIDjxGaPkvrhUnLfxIqIESn"
+firebase functions:secrets:set STRIPE_PRICE_ID_ANNUAL --data="price_1SIDlaGaPkvrhUnL7nNYC3xD"
+firebase functions:secrets:set STRIPE_WEBHOOK_SECRET --data="whsec_..."
 
 # URLs de redirecionamento
-firebase functions:config:set app.success_url="https://seu-dominio.com/checkout/success"
-firebase functions:config:set app.cancel_url="https://seu-dominio.com/checkout/cancel"
+firebase functions:secrets:set STRIPE_SUCCESS_URL --data="https://seu-dominio.com/checkout/success"
+firebase functions:secrets:set STRIPE_CANCEL_URL --data="https://seu-dominio.com/checkout/cancel"
 ```
+
+> **Dica:** se os segredos já existirem, repita o comando com `--data="novo-valor"` para criar uma nova versão. As Cloud Functions sempre usam a versão mais recente publicada.
 
 ### 3. Configurar Webhook no Stripe
 

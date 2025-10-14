@@ -67,6 +67,35 @@ const db = (0, firestore_1.getFirestore)();
 const stripe = new stripe_1.default(process.env.STRIPE_SECRET_KEY, {
     apiVersion: "2024-06-20",
 });
+const DEFAULT_PRICE_IDS = {
+    annual: "price_1SIDlaGaPkvrhUnL7nNYC3xD",
+    monthly: "price_1SIDjxGaPkvrhUnLfxIqIESn",
+};
+function extractPriceIds(raw, fallback) {
+    const candidates = (raw || "")
+        .split(",")
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0);
+    if (!candidates.length) {
+        candidates.push(fallback);
+    }
+    return candidates;
+}
+const ANNUAL_PRICE_IDS = extractPriceIds(process.env.STRIPE_PRICE_ID_ANNUAL, DEFAULT_PRICE_IDS.annual);
+const MONTHLY_PRICE_IDS = extractPriceIds(process.env.STRIPE_PRICE_ID_MONTHLY, DEFAULT_PRICE_IDS.monthly);
+const STRIPE_PRICE_ID_ANNUAL = ANNUAL_PRICE_IDS[0];
+const STRIPE_PRICE_ID_MONTHLY = MONTHLY_PRICE_IDS[0];
+const KNOWN_ANNUAL_PRICE_IDS = new Set(ANNUAL_PRICE_IDS);
+const KNOWN_MONTHLY_PRICE_IDS = new Set(MONTHLY_PRICE_IDS);
+function inferPlanFromPrice(priceId) {
+    if (!priceId)
+        return null;
+    if (KNOWN_ANNUAL_PRICE_IDS.has(priceId))
+        return "annual";
+    if (KNOWN_MONTHLY_PRICE_IDS.has(priceId))
+        return "monthly";
+    return null;
+}
 const ALLOWED_ORIGINS = new Set([
     "https://v-d-sigma.vercel.app",
     "http://localhost:5173",
@@ -106,9 +135,7 @@ exports.checkEntitlement = (0, https_1.onRequest)(async (req, res) => {
         const entitlement = (snap.exists ? snap.data()?.entitlement : null) ?? {};
         const active = !!entitlement.active;
         const plan = (entitlement.plan ?? null) || null;
-        const currentPeriodEnd = typeof entitlement.currentPeriodEnd === "number"
-            ? entitlement.currentPeriodEnd
-            : null;
+        const currentPeriodEnd = typeof entitlement.currentPeriodEnd === "number" ? entitlement.currentPeriodEnd : null;
         const expiresAt = typeof currentPeriodEnd === "number"
             ? new Date(currentPeriodEnd * 1000).toISOString()
             : null;
@@ -139,9 +166,7 @@ exports.createCheckoutSession = (0, https_1.onRequest)(async (req, res) => {
         const email = decoded.email ?? undefined;
         const body = (req.body ?? {});
         const plan = body.plan ?? "monthly";
-        const priceId = plan === "annual"
-            ? process.env.STRIPE_PRICE_ID_ANNUAL
-            : process.env.STRIPE_PRICE_ID_MONTHLY;
+        const priceId = plan === "annual" ? STRIPE_PRICE_ID_ANNUAL : STRIPE_PRICE_ID_MONTHLY;
         if (!priceId) {
             res.status(500).json({ error: "missing-price-id" });
             return;
@@ -243,9 +268,7 @@ exports.stripeWebhook = (0, https_1.onRequest)(async (req, res) => {
                     }
                 }
                 const active = ["active", "trialing", "past_due"].includes(sub.status);
-                const plan = sub.items.data[0]?.price?.id === process.env.STRIPE_PRICE_ID_ANNUAL
-                    ? "annual"
-                    : "monthly";
+                const plan = inferPlanFromPrice(sub.items.data[0]?.price?.id) ?? "monthly";
                 if (uid) {
                     await db.collection("users").doc(uid).set({
                         entitlement: {
@@ -311,11 +334,7 @@ exports.refreshEntitlement = (0, https_1.onRequest)(async (req, res) => {
             null;
         const active = !!sub;
         const priceId = sub?.items.data[0]?.price?.id;
-        const plan = priceId === process.env.STRIPE_PRICE_ID_ANNUAL
-            ? "annual"
-            : priceId
-                ? "monthly"
-                : null;
+        const plan = inferPlanFromPrice(priceId) ?? (priceId ? "monthly" : null);
         const currentPeriodEnd = sub?.current_period_end ?? null;
         const subscriptionId = sub?.id ?? null;
         await userRef.set({ entitlement: { active, plan, currentPeriodEnd, subscriptionId } }, { merge: true });

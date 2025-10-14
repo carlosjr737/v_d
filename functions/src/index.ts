@@ -33,6 +33,40 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
   apiVersion: "2024-06-20",
 });
 
+const DEFAULT_PRICE_IDS = {
+  annual: "price_1SIDlaGaPkvrhUnL7nNYC3xD",
+  monthly: "price_1SIDjxGaPkvrhUnLfxIqIESn",
+} as const;
+
+function extractPriceIds(raw: string | undefined, fallback: string): string[] {
+  const candidates = (raw || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+
+  if (!candidates.length) {
+    candidates.push(fallback);
+  }
+
+  return candidates;
+}
+
+const ANNUAL_PRICE_IDS = extractPriceIds(process.env.STRIPE_PRICE_ID_ANNUAL, DEFAULT_PRICE_IDS.annual);
+const MONTHLY_PRICE_IDS = extractPriceIds(process.env.STRIPE_PRICE_ID_MONTHLY, DEFAULT_PRICE_IDS.monthly);
+
+const STRIPE_PRICE_ID_ANNUAL = ANNUAL_PRICE_IDS[0];
+const STRIPE_PRICE_ID_MONTHLY = MONTHLY_PRICE_IDS[0];
+
+const KNOWN_ANNUAL_PRICE_IDS = new Set(ANNUAL_PRICE_IDS);
+const KNOWN_MONTHLY_PRICE_IDS = new Set(MONTHLY_PRICE_IDS);
+
+function inferPlanFromPrice(priceId?: string | null): Plan {
+  if (!priceId) return null;
+  if (KNOWN_ANNUAL_PRICE_IDS.has(priceId)) return "annual";
+  if (KNOWN_MONTHLY_PRICE_IDS.has(priceId)) return "monthly";
+  return null;
+}
+
 // -------------------------------------------------------
 // Helpers
 // -------------------------------------------------------
@@ -139,10 +173,7 @@ export const createCheckoutSession = onRequest(async (req, res) => {
     }>;
     const plan = body.plan ?? "monthly";
 
-    const priceId =
-      plan === "annual"
-        ? (process.env.STRIPE_PRICE_ID_ANNUAL as string)
-        : (process.env.STRIPE_PRICE_ID_MONTHLY as string);
+    const priceId = plan === "annual" ? STRIPE_PRICE_ID_ANNUAL : STRIPE_PRICE_ID_MONTHLY;
 
     if (!priceId) {
       res.status(500).json({ error: "missing-price-id" });
@@ -260,10 +291,7 @@ export const stripeWebhook = onRequest(async (req, res) => {
         }
 
         const active = ["active", "trialing", "past_due"].includes(sub.status);
-        const plan: Plan =
-          sub.items.data[0]?.price?.id === process.env.STRIPE_PRICE_ID_ANNUAL
-            ? "annual"
-            : "monthly";
+        const plan: Plan = inferPlanFromPrice(sub.items.data[0]?.price?.id) ?? "monthly";
 
         if (uid) {
           await db.collection("users").doc(uid).set(
@@ -346,12 +374,7 @@ export const refreshEntitlement = onRequest(async (req, res) => {
 
     const active = !!sub;
     const priceId = sub?.items.data[0]?.price?.id;
-    const plan: Plan =
-      priceId === process.env.STRIPE_PRICE_ID_ANNUAL
-        ? "annual"
-        : priceId
-        ? "monthly"
-        : null;
+    const plan: Plan = inferPlanFromPrice(priceId) ?? (priceId ? "monthly" : null);
     const currentPeriodEnd = sub?.current_period_end ?? null;
     const subscriptionId = sub?.id ?? null;
 
