@@ -868,3 +868,4 @@ createSeedCard('extremo-d22', 'dare', 'Chupe o cu do seu parceiro(a) com vontade
 createSeedCard('extremo-d23', 'dare', 'Conte um segredo sexual bem safado pro seu parceiro(a), enquanto acaricia as partes íntimas com tesão por 7 minutos (com consentimento).', 'extremo'),
 createSeedCard('extremo-d24', 'dare', 'Escutem um podcast pornô juntos, enquanto um masturba o outro com movimentos intensos e provocantes por 12 minutos (com permissão).', 'extremo'),
 createSeedCard('extremo-d25', 'dare', 'Masturbe seu parceiro(a) com força e tesão por 15 segundos, olhando nos olhos pra aumentar a putaria (com consentimento).', 'extremo')
+];
