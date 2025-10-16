@@ -256,7 +256,7 @@ export const CreateCardModal: React.FC<CreateCardModalProps> = ({
                     cardType === 'truth' ? 'pergunta reveladora' : 'provocação audaciosa'
                   }...`}
                   rows={6}
-                  className="min-h-[10rem] w-full resize-none rounded-xl border border-border/60 bg-bg-900/70 px-4 py-3 text-base text-text placeholder:text-text-subtle focus-visible:outline-none focus-visible:ring-0"
+                  className="min-h-[10rem] w-full resize-none rounded-xl border border-border/60 bg-white/90 px-4 py-3 text-base text-gray-900 placeholder:text-gray-600 focus-visible:outline-none focus-visible:ring-0"
                   maxLength={500}
                   disabled={isSubmitting}
                   required
