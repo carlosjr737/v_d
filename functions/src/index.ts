@@ -34,8 +34,8 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
 });
 
 const DEFAULT_PRICE_IDS = {
-  annual: "price_1SIDlaGaPkvrhUnL7nNYC3xD",
-  monthly: "price_1SIDjxGaPkvrhUnLfxIqIESn",
+  annual: "price_1SIVeBKFaEtennkkBmuMbWUQ",
+  monthly: "price_1SIVa2KFaEtennkkgNcgdsny",
 } as const;
 
 function extractPriceIds(raw: string | undefined, fallback: string): string[] {

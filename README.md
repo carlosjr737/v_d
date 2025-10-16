@@ -64,9 +64,10 @@ No Firebase Functions, configure as seguintes variáveis:
 ```bash
 
 # Chaves do Stripe (Secret Manager)
-firebase functions:secrets:set STRIPE_SECRET_KEY --data="sk_live_..."
-firebase functions:secrets:set STRIPE_PRICE_ID_MONTHLY --data="price_1SIDjxGaPkvrhUnLfxIqIESn"
-firebase functions:secrets:set STRIPE_PRICE_ID_ANNUAL --data="price_1SIDlaGaPkvrhUnL7nNYC3xD"
+firebase functions:secrets:set STRIPE_SECRET_KEY --data="sk_live_XXXXXXXXXXXXXXXX""
+firebase functions:secrets:set STRIPE_PRICE_ID_MONTHLY --data="price_1SIVa2KFaEtennkkgNcgdsny"
+firebase functions:secrets:set STRIPE_PRICE_ID_ANNUAL --data="price_1SIVeBKFaEtennkkBmuMbWUQ"
+firebase functions:secrets:set STRIPE_PUBLISHABLE_KEY --data="pk_live_51RPCj6KFaEtennkktvwNggJEBC1pMKDb9c2INi7YWgTebopkEIK0ZjXkrctrV0w2eNIpwXri83ULwF9buDW3OPXN00685EDD6J"
 firebase functions:secrets:set STRIPE_WEBHOOK_SECRET --data="whsec_..."
 
 

@@ -68,8 +68,8 @@ const stripe = new stripe_1.default(process.env.STRIPE_SECRET_KEY, {
     apiVersion: "2024-06-20",
 });
 const DEFAULT_PRICE_IDS = {
-    annual: "price_1SIDlaGaPkvrhUnL7nNYC3xD",
-    monthly: "price_1SIDjxGaPkvrhUnLfxIqIESn",
+    annual: "price_1SIVeBKFaEtennkkBmuMbWUQ",
+    monthly: "price_1SIVa2KFaEtennkkgNcgdsny",
 };
 function extractPriceIds(raw, fallback) {
     const candidates = (raw || "")
