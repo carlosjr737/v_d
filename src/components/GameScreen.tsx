@@ -186,8 +186,15 @@ export const GameScreen: React.FC<GameScreenProps> = ({
   const [isChooseModalOpen, setIsChooseModalOpen] = useState(false);
   const [powerState, setPowerState] = useState<ChooseGameState>(() => createPowerStateFromGame(gameState));
   const [pointDeltas, setPointDeltas] = useState<Record<string, number | null>>({});
-  const { user, loginGoogle, loginEmailPassword, logout, loading: entitlementLoading } =
-    useEntitlement();
+  const {
+    user,
+    loginGoogle,
+    loginEmailPassword,
+    logout,
+    loading: entitlementLoading,
+    active: hasPremiumEntitlement,
+    openCustomerPortal,
+  } = useEntitlement();
 
   const [authBusy, setAuthBusyState] = useState(false);
   const handleAuthBusyChange = useCallback((busy: boolean) => {
@@ -765,6 +772,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({
         loginWithGoogle={loginGoogle}
         loginWithEmailPassword={loginEmailPassword}
         logout={logout}
+        isPremium={hasPremiumEntitlement}
+        onManageSubscription={openCustomerPortal}
       />
     </>
   );

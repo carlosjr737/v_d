@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.refreshEntitlement = exports.stripeWebhook = exports.createCheckoutSession = exports.checkEntitlement = void 0;
+exports.refreshEntitlement = exports.stripeWebhook = exports.createBillingPortalSession = exports.createCheckoutSession = exports.checkEntitlement = void 0;
 // functions/src/index.ts
 const https_1 = require("firebase-functions/v2/https");
 const v2_1 = require("firebase-functions/v2");
@@ -234,6 +234,45 @@ exports.createCheckoutSession = (0, https_1.onRequest)(async (req, res) => {
         logger.error("createCheckoutSession error", msg);
         const status = msg === "missing-token" ? 401 : msg.startsWith("no-active-price") ? 500 : 400;
         res.status(status).json({ error: msg });
+    }
+});
+// -------------------------------------------------------
+// POST – cria sessão do Billing Portal (gerenciar/cancelar assinatura)
+// -------------------------------------------------------
+exports.createBillingPortalSession = (0, https_1.onRequest)(async (req, res) => {
+    applyCors(req, res);
+    if (req.method === "OPTIONS") {
+        res.status(204).send("");
+        return;
+    }
+    try {
+        if (req.method !== "POST") {
+            res.status(405).json({ error: "method-not-allowed" });
+            return;
+        }
+        const decoded = await verifyBearer(req);
+        const uid = decoded.uid;
+        const userSnap = await db.collection("users").doc(uid).get();
+        const customerId = (userSnap.exists
+            ? userSnap.data()?.stripeCustomerId
+            : undefined);
+        if (!customerId) {
+            res.status(404).json({ error: "customer-not-found" });
+            return;
+        }
+        const returnUrl = process.env.STRIPE_SUCCESS_URL ||
+            process.env.STRIPE_CANCEL_URL ||
+            "https://v-d-sigma.vercel.app";
+        const session = await stripe.billingPortal.sessions.create({
+            customer: customerId,
+            return_url: returnUrl,
+        });
+        res.json({ url: session.url });
+    }
+    catch (e) {
+        const msg = e instanceof Error ? e.message : "error";
+        logger.error("createBillingPortalSession error", msg);
+        res.status(msg === "missing-token" ? 401 : 400).json({ error: msg });
     }
 });
 // -------------------------------------------------------

@@ -9,6 +9,8 @@ interface AuthModalProps {
   loginWithGoogle: () => Promise<void>;
   loginWithEmailPassword: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  isPremium?: boolean;
+  onManageSubscription?: () => Promise<void>;
 }
 
 function normalizeError(err: unknown, fallback: string): string {
@@ -26,6 +28,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   loginWithGoogle,
   loginWithEmailPassword,
   logout,
+  isPremium = false,
+  onManageSubscription,
 }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -114,6 +118,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   }, [isBusy, logout, onClose]);
 
+  const handleManageSubscription = useCallback(async () => {
+    if (isBusy || !onManageSubscription) return;
+    setIsBusy(true);
+    setError(null);
+    try {
+      await onManageSubscription();
+    } catch (err) {
+      setError(normalizeError(err, 'Falha ao abrir o gerenciamento da assinatura.'));
+    } finally {
+      setIsBusy(false);
+    }
+  }, [isBusy, onManageSubscription]);
+
   useEffect(() => {
     if (!isOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
@@ -169,6 +186,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
             )}
             <div className="flex flex-col gap-3">
+              {isPremium && onManageSubscription && (
+                <button
+                  type="button"
+                  onClick={handleManageSubscription}
+                  disabled={isBusy}
+                  className="w-full rounded-pill border border-red-400/60 px-4 py-2 text-sm font-semibold text-red-200 transition hover:border-red-300 hover:text-red-100 focus:outline-none focus:ring-2 focus:ring-red-300/60 disabled:opacity-60"
+                >
+                  {isBusy ? 'Carregando...' : 'Cancelar assinatura'}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={handleLogout}
