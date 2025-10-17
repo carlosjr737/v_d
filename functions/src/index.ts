@@ -114,6 +114,8 @@ type ResLite = {
 
 const ALLOWED_ORIGINS = new Set<string>([
   "https://v-d-sigma.vercel.app",
+  "https://verdadeoudesafio.app",
+  "https://www.verdadeoudesafio.app",
   "http://localhost:5173",
 ]);
 
