@@ -122,6 +122,8 @@ function inferPlanFromPrice(priceId) {
 }
 const ALLOWED_ORIGINS = new Set([
     "https://v-d-sigma.vercel.app",
+    "https://verdadeoudesafio.app",
+    "https://www.verdadeoudesafio.app",
     "http://localhost:5173",
 ]);
 function applyCors(req, res) {
