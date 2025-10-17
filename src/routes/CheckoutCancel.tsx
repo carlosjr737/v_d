@@ -1,3 +1,11 @@
+import { useHandleStripeReturn } from '@/hooks/useHandleStripeReturn';
+
 export default function CheckoutCancel() {
-  return <div className="p-6 text-white">Pagamento cancelado. Você pode tentar novamente quando quiser.</div>;
+  useHandleStripeReturn();
+
+  return (
+    <div className="p-6 text-white">
+      Cancelamento concluído. Voltando ao jogo e atualizando seu acesso… ⏳
+    </div>
+  );
 }
