@@ -11,6 +11,7 @@ import { auth, googleProvider } from '@/config/firebase';
 import {
   checkEntitlement,
   createCheckoutSession,
+  createBillingPortalSession,
   type EntitlementResponse,
   type Plan,
 } from '@/services/entitlementApi';
@@ -128,6 +129,11 @@ export function useEntitlement() {
     window.location.href = url;
   };
 
+  const openCustomerPortal = async () => {
+    const { url } = await createBillingPortalSession();
+    window.location.href = url;
+  };
+
   const logout = async () => {
     await signOut(auth);
     setState((prev) => ({
@@ -139,5 +145,13 @@ export function useEntitlement() {
     }));
   };
 
-  return { ...state, refresh, loginGoogle, loginEmailPassword, openCheckout, logout };
+  return {
+    ...state,
+    refresh,
+    loginGoogle,
+    loginEmailPassword,
+    openCheckout,
+    openCustomerPortal,
+    logout,
+  };
 }

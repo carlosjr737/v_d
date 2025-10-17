@@ -257,6 +257,53 @@ export const createCheckoutSession = onRequest(async (req, res) => {
 });
 
 // -------------------------------------------------------
+// POST – cria sessão do Billing Portal (gerenciar/cancelar assinatura)
+// -------------------------------------------------------
+export const createBillingPortalSession = onRequest(async (req, res) => {
+  applyCors(req as any, res as any);
+  if (req.method === "OPTIONS") {
+    res.status(204).send("");
+    return;
+  }
+
+  try {
+    if (req.method !== "POST") {
+      res.status(405).json({ error: "method-not-allowed" });
+      return;
+    }
+
+    const decoded = await verifyBearer(req as any);
+    const uid = decoded.uid;
+
+    const userSnap = await db.collection("users").doc(uid).get();
+    const customerId = (userSnap.exists
+      ? (userSnap.data() as { stripeCustomerId?: string })?.stripeCustomerId
+      : undefined) as string | undefined;
+
+    if (!customerId) {
+      res.status(404).json({ error: "customer-not-found" });
+      return;
+    }
+
+    const returnUrl =
+      (process.env.STRIPE_SUCCESS_URL as string | undefined) ||
+      (process.env.STRIPE_CANCEL_URL as string | undefined) ||
+      "https://v-d-sigma.vercel.app";
+
+    const session = await stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: returnUrl,
+    });
+
+    res.json({ url: session.url });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "error";
+    logger.error("createBillingPortalSession error", msg);
+    res.status(msg === "missing-token" ? 401 : 400).json({ error: msg });
+  }
+});
+
+// -------------------------------------------------------
 // POST – Webhook do Stripe (sincroniza Firestore)
 // -------------------------------------------------------
 export const stripeWebhook = onRequest(async (req, res) => {

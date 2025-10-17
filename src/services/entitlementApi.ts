@@ -73,6 +73,10 @@ export async function createCheckoutSession(
   return authFetch<{ url: string }>('/createCheckoutSession', { method: 'POST', body });
 }
 
+export async function createBillingPortalSession(): Promise<{ url: string }> {
+  return authFetch<{ url: string }>('/createBillingPortalSession', { method: 'POST' });
+}
+
 /**
  * Atalho para iniciar o checkout (faz a request e redireciona o navegador).
  * Use este no seu botão "Liberar agora".
@@ -82,6 +86,12 @@ export async function startCheckout(options?: { promoCode?: string; plan?: Plan 
   const promoCode = options?.promoCode;
   const { url } = await createCheckoutSession(promoCode, plan);
   if (!url) throw new Error('checkout_url_missing');
+  window.location.href = url;
+}
+
+export async function startBillingPortal() {
+  const { url } = await createBillingPortalSession();
+  if (!url) throw new Error('billing_portal_url_missing');
   window.location.href = url;
 }
 
