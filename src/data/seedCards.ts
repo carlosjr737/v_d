@@ -841,6 +841,8 @@ createSeedCard('extremo-v133', 'truth', 'Qual desejo secreto de experimentar um 
 createSeedCard('extremo-v134', 'truth', 'Se pudesse criar uma noite sem tabus, como seria a dinâmica sensual com seu parceiro(a)?', 'extremo'),
 createSeedCard('extremo-v135', 'truth', 'Qual fantasia com um toque de voyeurismo você já considerou, mas nunca ousou propor?', 'extremo'),
 createSeedCard('extremo-v136', 'truth', 'Você já sonhou com um cenário de entrega total, testando os limites do prazer? Descreva.', 'extremo'),
+createSeedCard('extremo-v137', 'truth', 'Se hoje fosse tudo liberado, o que você faria?', 'extremo'),
+createSeedCard('extremo-v138', 'truth', 'O que você acha de trazer mais uma pessoa agora?', 'extremo'),
 
   // EXTREMO - Desafios
 createSeedCard('extremo-d1', 'dare', 'Escolham um conto erótico online e mergulhem na cena, usando brinquedos sensuais e sussurrando provocações sedutoras, por 12 minutos (com consentimento).', 'extremo'),
@@ -867,5 +869,6 @@ createSeedCard('extremo-d21', 'dare', 'Use a boca pra deixar seu parceiro(a) lou
 createSeedCard('extremo-d22', 'dare', 'Chupe o cu do seu parceiro(a) com vontade, explorando com a língua pra provocar gemidos por 1 minuto (com permissão).', 'extremo'),
 createSeedCard('extremo-d23', 'dare', 'Conte um segredo sexual bem safado pro seu parceiro(a), enquanto acaricia as partes íntimas com tesão por 7 minutos (com consentimento).', 'extremo'),
 createSeedCard('extremo-d24', 'dare', 'Escutem um podcast pornô juntos, enquanto um masturba o outro com movimentos intensos e provocantes por 12 minutos (com permissão).', 'extremo'),
-createSeedCard('extremo-d25', 'dare', 'Masturbe seu parceiro(a) com força e tesão por 15 segundos, olhando nos olhos pra aumentar a putaria (com consentimento).', 'extremo')
+createSeedCard('extremo-d25', 'dare', 'Masturbe seu parceiro(a) com força e tesão por 15 segundos, olhando nos olhos pra aumentar a putaria (com consentimento).', 'extremo'),
+createSeedCard('extremo-d25', 'dare', 'Hoje está tudo liberado, peça o que quiser.', 'extremo'),
 ];
